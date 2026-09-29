@@ -1,41 +1,36 @@
 appId: com.pilot.browser
 productName: Pilot Browser
-copyright: Copyright © 2023 Pilot Browser
-
-afterPack: ./build/afterPack.cjs
+copyright: Copyright © 2026 Pilot Browser
 
 directories:
   output: release/${version}
-  buildResources: build
+  buildResources: assets
 
 files:
-  - dist/**/*
-  - node_modules/**/*
+  - dist/renderer/**/*
+  - electron/**/*
   - package.json
-  - main.js
-  - preload.js
-  - backend/**/*
-
-asar: true
-asarUnpack:
-  - "**/node_modules/playwright/**"
-  - "**/node_modules/playwright-core/**"
+  - "!src/**"
+  - "!backend/**"
+  - "!scripts/**"
 
 extraResources:
-  - from: "backend"
-    to: "app/backend"
+  - from: backend
+    to: app/backend
     filter:
       - "**/*"
+      - "!**/__pycache__/**"
+      - "!**/*.pyc"
+      - "!pilot_browser.db"
+      - "!pilot_backend.log"
+
+asar: true
 
 win:
   target: nsis
-  icon: build/icon.ico
+  icon: assets/icon.png
   artifactName: "${productName}-${version}-${os}-${arch}.${ext}"
   publisherName: "Pilot Browser Team"
-  # Disable code signing for development builds
-  verifyUpdateCodeSignature: false
-  # Disable signing for development
-  signingHashAlgorithms: []
   fileAssociations:
     - ext: html
       name: HTML File
@@ -46,24 +41,22 @@ win:
 
 mac:
   target: dmg
-  icon: build/icon.icns
+  icon: assets/icon.png
   artifactName: "${productName}-${version}-${os}-${arch}.${ext}"
   category: public.app-category.utilities
   hardenedRuntime: true
   gatekeeperAssess: false
-  entitlements: "build/entitlements.mac.plist"
-  entitlementsInherit: "build/entitlements.mac.plist"
 
 linux:
-  target: ["AppImage", "deb", "rpm"]
-  icon: build/icon.png
+  target: ["AppImage", "deb"]
+  icon: assets/icon.png
   category: Network
   maintainer: "Pilot Browser Team"
   vendor: "Pilot Browser"
-  synopsis: "AI-Powered Minimalist Browser"
+  synopsis: "AI-powered minimalist browser"
   description: |
-    Pilot Browser is a minimalist, AI-powered browser with built-in automation capabilities.
-    Features include AI-enhanced search, multi-agent task automation, and a clean interface.
+    Pilot Browser is an Arc-inspired desktop browser: vertical tabs, spaces,
+    command palette, split view, and a local AI assistant.
 
 nsis:
   oneClick: false
@@ -73,7 +66,6 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: "Pilot Browser"
   uninstallDisplayName: "Pilot Browser"
-  include: build/installer.nsh
 
 publish:
   provider: github

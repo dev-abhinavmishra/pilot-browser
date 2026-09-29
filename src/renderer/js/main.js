@@ -1,17 +1,5 @@
-// Main entry point for the Pilot Browser renderer process
-
-// Import modules
+// main.js — renderer entry point
+import '@fortawesome/fontawesome-free/css/all.min.css';
 import { initApp } from './app.js';
 
-// Initialize the application when the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', () => {
-    initApp();
-
-    // Close Artifacts sidebar
-    const closeArtifacts = document.getElementById('close-artifacts');
-    if (closeArtifacts) {
-        closeArtifacts.onclick = () => {
-            document.getElementById('artifacts-sidebar').classList.remove('active');
-        };
-    }
-});
+document.addEventListener('DOMContentLoaded', initApp);

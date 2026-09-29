@@ -3,311 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pilot Browser</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' http://localhost:* ws://localhost:*; script-src 'self'">
+    <title>Pilot</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="header-left">
-                <button id="menu-btn" class="icon-btn" title="Menu">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <h1 class="app-title">Pilot</h1>
-            </div>
-            <div class="header-right">
-                <button id="theme-toggle" class="icon-btn" title="Toggle theme">
-                    <i class="fas fa-moon"></i>
-                </button>
-                <button id="settings-btn" class="icon-btn" title="Settings">
-                    <i class="fas fa-cog"></i>
-                </button>
-            </div>
-        </header>
+<div id="app" class="theme-dark">
+    <!-- ======================= SIDEBAR ======================= -->
+    <aside id="sidebar">
+        <div class="sidebar-drag"></div>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <div id="section-home" class="content-section active">
-                <div class="search-section">
-                    <!-- Clarification Popup -->
-                    <div id="clarification-popup" class="clarification-popup hidden">
-                        <div class="popup-content">
-                            <p id="clarification-question"></p>
-                            <div id="clarification-options" class="options-grid"></div>
-                            <div class="custom-input-group">
-                                <input type="text" id="custom-clarification" placeholder="Other option...">
-                                <button id="send-clarification" class="btn-primary">Send</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Search/AI Input -->
-                    <div class="search-container">
-                        <div class="search-box">
-                            <div class="search-input-container">
-                                <i class="fas fa-search search-icon"></i>
-                                <input
-                                    type="text"
-                                    id="search-input"
-                                    class="search-input"
-                                    placeholder="Ask or search..."
-                                    autocomplete="off"
-                                    autofocus
-                                >
-                                <div class="search-actions">
-                                    <button id="calc-btn" class="icon-btn" title="Calculator"><i class="fas fa-calculator"></i></button>
-                                    <button id="sum-btn" class="icon-btn" title="Summarize"><i class="fas fa-align-left"></i></button>
-                                    <button id="trans-btn" class="icon-btn" title="Translate"><i class="fas fa-language"></i></button>
-                                    <button id="weather-btn" class="icon-btn" title="Weather"><i class="fas fa-cloud-sun"></i></button>
-                                    <button id="automate-btn" class="icon-btn" title="Automate"><i class="fas fa-magic"></i></button>
-                                    <button id="voice-search-btn" class="icon-btn" title="Voice search">
-                                        <i class="fas fa-microphone"></i>
-                                    </button>
-                                    <button id="clear-search-btn" class="icon-btn" title="Clear">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="search-controls">
-                                <div class="search-modes">
-                                    <button class="mode-btn active" data-mode="search">
-                                        <i class="fas fa-search"></i> Search
-                                    </button>
-                                    <button class="mode-btn" data-mode="ai">
-                                        <i class="fas fa-robot"></i> Agent Mode
-                                    </button>
-                                </div>
-                                <div class="safety-selector">
-                                    <label for="safety-level">Safety:</label>
-                                    <select id="safety-level">
-                                        <option value="strict">Strict</option>
-                                        <option value="auto" selected>Auto</option>
-                                        <option value="relaxed">Relaxed</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Results Container -->
-                <div id="results-container" class="results-container">
-                    <div class="welcome-message">
-                        <h2>Welcome to Pilot Browser</h2>
-                        <p>Enter a search query or ask a question to get started.</p>
-                        <div class="quick-actions">
-                            <button class="quick-action-btn" data-query="What's the weather today?">
-                                <i class="fas fa-cloud-sun"></i> Weather
-                            </button>
-                            <button class="quick-action-btn" data-query="Latest tech news">
-                                <i class="fas fa-newspaper"></i> Tech News
-                            </button>
-                            <button class="quick-action-btn" data-query="How to automate browser tasks?">
-                                <i class="fas fa-robot"></i> Automate Tasks
-                            </button>
-                        </div>
-                    </div>
-                </div>
+        <div class="sidebar-head">
+            <div class="window-controls">
+                <button class="wc wc-close" id="wc-close" title="Close"></button>
+                <button class="wc wc-min" id="wc-min" title="Minimize"></button>
+                <button class="wc wc-max" id="wc-max" title="Maximize"></button>
             </div>
-
-            <div id="section-history" class="content-section">
-                <div class="section-placeholder">
-                    <i class="fas fa-history"></i>
-                    <h3>History</h3>
-                    <p>Your browsing history will appear here.</p>
-                </div>
+            <div class="brand">
+                <svg class="brand-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 2.5 21 7.5v9L12 21.5 3 16.5v-9L12 2.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                    <path d="M12 8.2 16.6 10.6v4.8L12 17.8l-4.6-2.4v-4.8L12 8.2Z" fill="currentColor" opacity=".85"/>
+                </svg>
+                <span>Pilot</span>
             </div>
-
-            <div id="section-bookmarks" class="content-section">
-                <div class="section-placeholder">
-                    <i class="fas fa-bookmark"></i>
-                    <h3>Bookmarks</h3>
-                    <p>Your bookmarks will appear here.</p>
-                </div>
-            </div>
-
-            <div id="section-tasks" class="content-section">
-                <div id="agent-container" class="agent-container">
-                    <div class="section-placeholder">
-                        <i class="fas fa-tasks"></i>
-                        <h3>Tasks</h3>
-                        <p>Your automation tasks will appear here.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div id="section-credentials" class="content-section">
-                <div class="section-placeholder">
-                    <i class="fas fa-key"></i>
-                    <h3>Credentials</h3>
-                    <p>Your saved credentials will appear here.</p>
-                </div>
-            </div>
-
-            <div id="section-settings" class="content-section">
-                <div class="section-placeholder">
-                    <i class="fas fa-cog"></i>
-                    <h3>Settings</h3>
-                    <p>Application settings</p>
-                </div>
-            </div>
-
-            <div id="section-help" class="content-section">
-                <div class="section-placeholder">
-                    <i class="fas fa-question-circle"></i>
-                    <h3>Help & Feedback</h3>
-                    <p>Documentation and support</p>
-                </div>
-            </div>
-        </main>
-
-        <!-- Status Bar -->
-        <footer class="status-bar">
-            <div class="status-text" id="status-text">Ready</div>
-            <div class="status-icons">
-                <span id="connection-status" title="Connection status">
-                    <i class="fas fa-plug"></i>
-                </span>
-                <span id="battery-status" title="Battery">
-                    <i class="fas fa-battery-full"></i> 100%
-                </span>
-                <span id="time-display">00:00</span>
-            </div>
-        </footer>
-
-        <!-- Quick Actions Container -->
-        <div id="quick-actions" class="quick-actions-panel"></div>
-
-        <!-- Artifacts Sidebar -->
-        <div class="artifacts-sidebar" id="artifacts-sidebar">
-            <div class="sidebar-header">
-                <h3>Artifacts</h3>
-                <button id="close-artifacts" class="icon-btn"><i class="fas fa-times"></i></button>
-            </div>
-            <div id="artifacts-content" class="artifacts-content">
-                <!-- Apps and code will be rendered here -->
-            </div>
+            <button id="sidebar-toggle" class="icon-btn" title="Toggle sidebar (Ctrl+Shift+B)">
+                <i class="fa-solid fa-sidebar fa-flip-horizontal"></i>
+            </button>
         </div>
 
-        <!-- Sidebar -->
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h3>Menu</h3>
-                <button id="close-sidebar" class="icon-btn">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" data-section="section-home">
-                    <i class="fas fa-home"></i> Home
-                </a>
-                <a href="#" class="nav-item" data-section="section-history">
-                    <i class="fas fa-history"></i> History
-                </a>
-                <a href="#" class="nav-item" data-section="section-bookmarks">
-                    <i class="fas fa-bookmark"></i> Bookmarks
-                </a>
-                <a href="#" class="nav-item" data-section="section-tasks">
-                    <i class="fas fa-tasks"></i> Tasks
-                </a>
-                <a href="#" class="nav-item" data-section="section-credentials">
-                    <i class="fas fa-key"></i> Credentials
-                </a>
-                <div class="sidebar-divider"></div>
-                <a href="#" class="nav-item" data-section="section-settings">
-                    <i class="fas fa-cog"></i> Settings
-                </a>
-                <a href="#" class="nav-item" data-section="section-help">
-                    <i class="fas fa-question-circle"></i> Help & Feedback
-                </a>
-            </nav>
-            <div class="sidebar-footer">
-                <div class="user-profile">
-                    <div class="user-avatar">
-                        <i class="fas fa-user"></i>
-                    </div>
-                    <div class="user-info">
-                        <div class="user-name">Guest</div>
-                        <div class="user-email">guest@example.com</div>
-                    </div>
-                </div>
-            </div>
+        <div class="space-switcher" id="space-switcher" title="Switch space"></div>
+
+        <div class="sidebar-scroll">
+            <div class="pinned-label" id="pinned-label"><span>Pinned</span></div>
+            <div class="pinned-grid" id="pinned-grid"></div>
+            <div class="tab-list" id="tab-list"></div>
         </div>
 
-        <!-- Settings Modal -->
-        <div class="modal" id="settings-modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Settings</h3>
-                    <button class="close-modal">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="settings-section">
-                        <h4>Appearance</h4>
-                        <div class="setting">
-                            <label>Theme</label>
-                            <select id="theme-select">
-                                <option value="system">System</option>
-                                <option value="light">Light</option>
-                                <option value="dark">Dark</option>
-                            </select>
-                        </div>
-                        <div class="setting">
-                            <label>Font Size</label>
-                            <select id="font-size-select">
-                                <option value="small">Small</option>
-                                <option value="medium" selected>Medium</option>
-                                <option value="large">Large</option>
-                            </select>
-                        </div>
+        <div class="sidebar-foot">
+            <button class="icon-btn" id="new-tab-btn" title="New tab (Ctrl+T)"><i class="fa-solid fa-plus"></i></button>
+            <button class="icon-btn" id="palette-btn" title="Command palette (Ctrl+K)"><i class="fa-solid fa-terminal"></i></button>
+            <button class="icon-btn" id="library-btn" title="Library: history, bookmarks, downloads"><i class="fa-solid fa-layer-group"></i></button>
+            <button class="icon-btn" id="assistant-toggle" title="Pilot AI assistant"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+            <button class="icon-btn" id="settings-btn" title="Settings"><i class="fa-solid fa-gear"></i></button>
+        </div>
+    </aside>
+
+    <!-- ======================= MAIN ======================= -->
+    <section id="main">
+        <div id="toolbar" class="drag">
+            <div class="nav-cluster nodrag">
+                <button class="icon-btn" id="nav-back" title="Back (Alt+←)"><i class="fa-solid fa-arrow-left"></i></button>
+                <button class="icon-btn" id="nav-forward" title="Forward (Alt+→)"><i class="fa-solid fa-arrow-right"></i></button>
+                <button class="icon-btn" id="nav-reload" title="Reload (Ctrl+R)"><i class="fa-solid fa-rotate-right"></i></button>
+            </div>
+            <div class="omnibox nodrag" id="omnibox">
+                <i class="fa-solid fa-lock omni-icon" id="omni-lock"></i>
+                <input id="omni-input" type="text" spellcheck="false" autocomplete="off" placeholder="Search or enter address">
+                <div class="omni-suggest" id="omni-suggest"></div>
+            </div>
+            <div class="tool-cluster nodrag">
+                <button class="icon-btn" id="btn-bookmark" title="Bookmark (Ctrl+D)"><i class="fa-regular fa-star"></i></button>
+                <button class="icon-btn" id="btn-find" title="Find in page (Ctrl+F)"><i class="fa-solid fa-magnifying-glass"></i></button>
+                <button class="icon-btn" id="btn-split" title="Split view"><i class="fa-solid fa-table-columns"></i></button>
+                <button class="icon-btn" id="btn-menu" title="Menu"><i class="fa-solid fa-ellipsis"></i></button>
+            </div>
+        </div>
+        <div id="progress"><div id="progress-fill"></div></div>
+
+        <div id="stage">
+            <div id="webviews"></div>
+            <div id="split-divider"></div>
+
+            <!-- Start page overlay -->
+            <div id="start-overlay" class="hidden">
+                <div class="start-inner">
+                    <div class="start-clock" id="start-clock">9:41</div>
+                    <div class="start-date" id="start-date"></div>
+                    <div class="start-omni">
+                        <i class="fa-solid fa-bolt"></i>
+                        <input id="start-input" type="text" spellcheck="false" autocomplete="off" placeholder="Search or type a URL…">
                     </div>
-                    <div class="settings-section">
-                        <h4>Search</h4>
-                        <div class="setting">
-                            <label>
-                                <input type="checkbox" id="safe-search-toggle" checked>
-                                Enable Safe Search
-                            </label>
-                        </div>
-                        <div class="setting">
-                            <label>Default Search Engine</label>
-                            <select id="search-engine-select">
-                                <option value="google">Google</option>
-                                <option value="bing">Bing</option>
-                                <option value="duckduckgo">DuckDuckGo</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="settings-section">
-                        <h4>AI Settings</h4>
-                        <div class="setting">
-                            <label>AI Model</label>
-                            <select id="ai-model-select">
-                                <option value="gpt-4">GPT-4</option>
-                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                            </select>
-                        </div>
-                        <div class="setting">
-                            <label>
-                                <input type="checkbox" id="auto-ai-mode" checked>
-                                Auto-detect AI mode
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" id="cancel-settings">Cancel</button>
-                    <button class="btn btn-primary" id="save-settings">Save Changes</button>
+                    <div class="start-tiles" id="start-tiles"></div>
                 </div>
             </div>
+
+            <!-- Find bar -->
+            <div id="find-bar" class="hidden">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input id="find-input" type="text" placeholder="Find in page" spellcheck="false">
+                <span id="find-count"></span>
+                <button class="icon-btn" id="find-prev"><i class="fa-solid fa-chevron-up"></i></button>
+                <button class="icon-btn" id="find-next"><i class="fa-solid fa-chevron-down"></i></button>
+                <button class="icon-btn" id="find-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div id="status-bubble" class="hidden"></div>
+        </div>
+    </section>
+
+    <!-- ======================= ASSISTANT ======================= -->
+    <aside id="assistant-panel" class="hidden">
+        <div class="assistant-head">
+            <div class="assistant-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Pilot AI</div>
+            <button class="icon-btn" id="assistant-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="assistant-body" id="assistant-body"></div>
+        <div class="assistant-foot">
+            <button class="chip" id="assistant-summarize" title="Summarize current page"><i class="fa-solid fa-align-left"></i> Summarize page</button>
+            <div class="assistant-input-row">
+                <input id="assistant-input" type="text" placeholder="Ask anything…" autocomplete="off">
+                <button class="icon-btn send" id="assistant-send"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ======================= OVERLAYS ======================= -->
+    <div id="palette" class="overlay hidden">
+        <div class="palette-box">
+            <div class="palette-input-row">
+                <i class="fa-solid fa-terminal"></i>
+                <input id="palette-input" type="text" spellcheck="false" placeholder="Type a command or search…">
+                <kbd>esc</kbd>
+            </div>
+            <div class="palette-results" id="palette-results"></div>
         </div>
     </div>
 
-    <script src="js/main.js" type="module"></script>
+    <div id="library" class="overlay hidden">
+        <div class="library-box">
+            <div class="library-tabs">
+                <button class="lib-tab active" data-lib="history"><i class="fa-solid fa-clock-rotate-left"></i> History</button>
+                <button class="lib-tab" data-lib="bookmarks"><i class="fa-solid fa-star"></i> Bookmarks</button>
+                <button class="lib-tab" data-lib="downloads"><i class="fa-solid fa-download"></i> Downloads</button>
+                <button class="lib-tab" data-lib="settings"><i class="fa-solid fa-gear"></i> Settings</button>
+                <span class="flex"></span>
+                <button class="icon-btn" id="library-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="library-content" id="library-content"></div>
+        </div>
+    </div>
+
+    <div id="ctx-menu" class="hidden"></div>
+    <div id="toasts"></div>
+</div>
+
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
