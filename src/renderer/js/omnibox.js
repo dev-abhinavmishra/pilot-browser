@@ -26,16 +26,6 @@ export function initOmnibox() {
             closeSuggestions(); input.blur();
         }
     });
-
-    // start page input mirrors the same behavior
-    const startInput = document.getElementById('start-input');
-    startInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && startInput.value.trim()) {
-            navigateActive(startInput.value);
-            startInput.value = '';
-        }
-        if (e.key === 'Escape') startInput.blur();
-    });
 }
 
 function closeSuggestions() { box.classList.remove('open'); items = []; sel = -1; }

@@ -1,13 +1,14 @@
-// app.js — bootstrap, theme, window controls, global shortcuts, start page
-import { db, save, isElectron, faviconFor, hostOf } from './store.js';
+// app.js — bootstrap, theme, window controls, global shortcuts
+import { db, isElectron } from './store.js';
 import {
     initTabs, restoreSession, on, activeTab, createTab, closeTab, cycleTab,
-    activateAt, navigateActive, navReload, zoomBy, zoomReset, devTools,
-    spaceAccent, switchSpace, isStartShowing, wvCall,
+    activateAt, navReload, zoomBy, zoomReset, devTools,
+    spaceAccent, isStartShowing, wvCall,
 } from './tabs.js';
+import { initStartPage, renderStartTiles } from './startpage.js';
 import { initSidebar, applySidebarSetting, toggleSidebarCollapsed } from './sidebar.js';
 import { initUi, updateNavButtons, updateOmniboxUrl, updateBookmarkBtn, focusOmnibox,
-    webviewContextMenu, toggleFindBar, showFindBar, hideFindBar, openLibrary, toast } from './ui.js';
+    webviewContextMenu, toggleFindBar, openLibrary } from './ui.js';
 import { initOmnibox } from './omnibox.js';
 import { initPalette, openPalette, paletteOpen, closePalette } from './palette.js';
 import { initAssistant, toggle as toggleAssistant } from './assistant.js';
@@ -60,46 +61,6 @@ function initWindowControls() {
     document.getElementById('wc-close').addEventListener('click', () => window.pilot.close());
     document.getElementById('wc-min').addEventListener('click', () => window.pilot.minimize());
     document.getElementById('wc-max').addEventListener('click', () => window.pilot.maximize());
-}
-
-// ---------------------------------------------------------------------------
-// Start page
-// ---------------------------------------------------------------------------
-function initStartPage() {
-    tickClock();
-    setInterval(tickClock, 5000);
-    renderStartTiles();
-}
-
-function tickClock() {
-    const now = new Date();
-    const clock = document.getElementById('start-clock');
-    const date = document.getElementById('start-date');
-    if (clock) clock.textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M/i, '');
-    if (date) date.textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
-}
-
-export function renderStartTiles() {
-    const wrap = document.getElementById('start-tiles');
-    wrap.innerHTML = '';
-    for (const tile of db.settings.startTiles || []) {
-        const a = document.createElement('a');
-        a.className = 'start-tile';
-        a.href = '#';
-        const img = document.createElement('img');
-        img.src = faviconFor(tile.url); img.alt = '';
-        img.onerror = () => {
-            const l = document.createElement('span');
-            l.className = 'tile-letter';
-            l.textContent = (tile.name || '?')[0];
-            img.replaceWith(l);
-        };
-        const name = document.createElement('span');
-        name.textContent = tile.name;
-        a.appendChild(img); a.appendChild(name);
-        a.addEventListener('click', (e) => { e.preventDefault(); navigateActive(tile.url); });
-        wrap.appendChild(a);
-    }
 }
 
 // ---------------------------------------------------------------------------

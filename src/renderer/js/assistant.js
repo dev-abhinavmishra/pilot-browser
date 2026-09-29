@@ -81,6 +81,23 @@ async function send() {
     }
 }
 
+// entry point for the start-page console's ASK mode
+export async function askFromConsole(q) {
+    open();
+    bubble(q, 'user');
+    const t = typing();
+    try {
+        const page = await currentPageContext();
+        const ans = await ask(q, page);
+        t.remove();
+        renderAnswer(ans);
+    } catch {
+        t.remove();
+        backendUp = false;
+        renderAnswer(fallbackAnswer(q));
+    }
+}
+
 async function currentPageContext() {
     const tab = activeTab();
     if (!tab?.webview || !tab.url) return null;

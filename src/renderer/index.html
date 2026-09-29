@@ -7,7 +7,7 @@
     <title>Pilot</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -43,11 +43,11 @@
         </div>
 
         <div class="sidebar-foot">
-            <button class="icon-btn" id="new-tab-btn" title="New tab (Ctrl+T)"><i class="fa-solid fa-plus"></i></button>
-            <button class="icon-btn" id="palette-btn" title="Command palette (Ctrl+K)"><i class="fa-solid fa-terminal"></i></button>
-            <button class="icon-btn" id="library-btn" title="Library: history, bookmarks, downloads"><i class="fa-solid fa-layer-group"></i></button>
-            <button class="icon-btn" id="assistant-toggle" title="Pilot AI assistant"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
-            <button class="icon-btn" id="settings-btn" title="Settings"><i class="fa-solid fa-gear"></i></button>
+            <button class="foot-btn" id="new-tab-btn" title="New tab (Ctrl+T)"><i class="fa-solid fa-plus"></i><span>NEW</span></button>
+            <button class="foot-btn" id="palette-btn" title="Command deck (Ctrl+K)"><i class="fa-solid fa-terminal"></i><span>DECK</span></button>
+            <button class="foot-btn" id="library-btn" title="Library: history, bookmarks, downloads"><i class="fa-solid fa-layer-group"></i><span>LOG</span></button>
+            <button class="foot-btn" id="assistant-toggle" title="Pilot AI assistant"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI</span></button>
+            <button class="foot-btn" id="settings-btn" title="Settings"><i class="fa-solid fa-gear"></i><span>SET</span></button>
         </div>
     </aside>
 
@@ -77,16 +77,58 @@
             <div id="webviews"></div>
             <div id="split-divider"></div>
 
-            <!-- Start page overlay -->
+            <!-- Start page overlay — the console -->
             <div id="start-overlay" class="hidden">
                 <div class="start-inner">
-                    <div class="start-clock" id="start-clock">9:41</div>
-                    <div class="start-date" id="start-date"></div>
-                    <div class="start-omni">
-                        <i class="fa-solid fa-bolt"></i>
-                        <input id="start-input" type="text" spellcheck="false" autocomplete="off" placeholder="Search or type a URL…">
+                    <div class="start-head">
+                        <div class="start-wordmark">PILOT</div>
+                        <div class="start-clock" id="start-clock">9:41</div>
+                        <div class="start-date" id="start-date"></div>
                     </div>
+
+                    <div class="console">
+                        <div class="console-toprow">
+                            <div class="con-modes" id="con-modes">
+                                <button class="con-mode active" data-mode="search">SEARCH</button>
+                                <button class="con-mode" data-mode="ask">ASK&nbsp;AI</button>
+                                <button class="con-mode" data-mode="cmd">DECK</button>
+                            </div>
+                            <div class="con-led" id="con-led"></div>
+                            <div class="con-engines" id="con-engines"></div>
+                        </div>
+
+                        <div class="con-input-row">
+                            <i class="fa-solid fa-bolt con-bolt"></i>
+                            <input id="start-input" type="text" spellcheck="false" autocomplete="off" placeholder="Where to, captain?">
+                            <kbd class="con-enter">⏎</kbd>
+                        </div>
+
+                        <div class="console-botrow">
+                            <div class="con-group">
+                                <span class="con-label">OPEN&nbsp;IN</span>
+                                <div class="con-openin" id="con-openin">
+                                    <button class="con-sw active" data-openin="tab">THIS&nbsp;TAB</button>
+                                    <button class="con-sw" data-openin="new">NEW</button>
+                                    <button class="con-sw" data-openin="split">SPLIT</button>
+                                </div>
+                            </div>
+                            <div class="con-chips">
+                                <button data-lib="history"><i class="fa-solid fa-clock-rotate-left"></i>LOG</button>
+                                <button data-lib="bookmarks"><i class="fa-solid fa-star"></i>SAVED</button>
+                                <button data-lib="downloads"><i class="fa-solid fa-download"></i>FILES</button>
+                                <button data-lib="settings"><i class="fa-solid fa-gear"></i>SETUP</button>
+                            </div>
+                        </div>
+
+                        <div class="con-readout" id="con-readout"></div>
+                    </div>
+
                     <div class="start-tiles" id="start-tiles"></div>
+                    <div class="start-hints">
+                        <span><kbd>Ctrl+K</kbd> command deck</span>
+                        <span><kbd>Ctrl+L</kbd> flight strip</span>
+                        <span><kbd>Ctrl+T</kbd> new tab</span>
+                    </div>
                 </div>
             </div>
 

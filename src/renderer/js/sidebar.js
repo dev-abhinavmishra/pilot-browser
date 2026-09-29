@@ -120,9 +120,15 @@ function renderTabs() {
         fav.className = 'tab-favicon';
         fav.innerHTML = faviconHtml(t);
 
+        const text = document.createElement('div');
+        text.className = 'tab-text';
         const title = document.createElement('div');
         title.className = 'tab-title';
         title.textContent = t.title || (t.url ? hostOf(t.url) : 'New Tab');
+        const sub = document.createElement('div');
+        sub.className = 'tab-sub';
+        sub.textContent = t.url ? hostOf(t.url) : 'start page';
+        text.append(title, sub);
 
         const actions = document.createElement('div');
         actions.className = 'tab-actions';
@@ -148,7 +154,7 @@ function renderTabs() {
         close.addEventListener('click', (e) => { e.stopPropagation(); closeTab(t.id); });
         actions.appendChild(close);
 
-        row.append(fav, title, actions);
+        row.append(fav, text, actions);
         row.addEventListener('click', () => activateTab(t.id));
         row.addEventListener('contextmenu', (e) => { e.preventDefault(); tabMenu(e, t); });
         row.addEventListener('auxclick', (e) => { if (e.button === 1) closeTab(t.id); });
