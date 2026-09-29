@@ -61,6 +61,13 @@ export function save(immediate = false) {
     if (immediate) write(); else saveTimer = setTimeout(write, 250);
 }
 
+// debounced writes are lost if the window closes inside the 250ms window —
+// flush synchronously on the way out
+if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', () => save(true));
+    window.addEventListener('beforeunload', () => save(true));
+}
+
 export const db = state;
 export { isElectron };
 

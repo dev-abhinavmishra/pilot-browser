@@ -43,7 +43,8 @@ const URLISH = /^(https?:\/\/|about:|file:|localhost(:\d+)?(\/|$)|\d{1,3}(\.\d{1
 export function normalizeInput(input) {
     const v = (input || '').trim();
     if (!v) return null;
-    if (/^https?:\/\//i.test(v) || /^(about|file|data):/i.test(v)) return v;
+    // only navigable schemes — file:/data:/javascript: never reach a guest
+    if (/^https?:\/\//i.test(v)) return v;
     if (URLISH.test(v) && !v.includes(' ')) {
         // prefer URL form; localhost/IP/path-looking values count as URLs
         if (/\s/.test(v)) return searchUrl(v);
@@ -100,7 +101,10 @@ function buildWebview(tab) {
         renderErrorPage(wv, e);
     });
     wv.addEventListener('found-in-page', (e) => emit('found-in-page', e.result));
-    wv.addEventListener('dom-ready', () => emit('nav-changed', tab));
+    wv.addEventListener('dom-ready', () => {
+        if (tab.muted) wvCall(wv, 'setAudioMuted', true); // muted survives session restore
+        emit('nav-changed', tab);
+    });
 
     tab.webview = wv;
     return wv;
@@ -108,14 +112,17 @@ function buildWebview(tab) {
 
 function renderErrorPage(wv, e) {
     const desc = e.errorDescription || 'Network error';
+    const url = e.validatedURL || '';
+    // retry navigates to the failed URL, not this data: page
+    const retry = JSON.stringify(url).replace(/</g, '\\u003c');
     const html = `<!doctype html><meta charset=utf-8><body style="margin:0;font-family:Inter,system-ui;background:#0d0f14;color:#e7eaf2;display:flex;align-items:center;justify-content:center;height:100vh">
       <div style="text-align:center;max-width:420px">
         <div style="font-size:44px;margin-bottom:14px">🛰️</div>
         <h2 style="font-weight:700;margin-bottom:8px">Can't reach this page</h2>
-        <p style="color:#9aa3b5;font-size:13px;margin-bottom:4px">${escapeHtml(e.validatedURL || '')}</p>
+        <p style="color:#9aa3b5;font-size:13px;margin-bottom:4px">${escapeHtml(url)}</p>
         <p style="color:#6b7387;font-size:12px">${escapeHtml(desc)} (${e.errorCode})</p>
-        <button onclick="location.reload()" style="margin-top:18px;padding:9px 22px;border:none;border-radius:999px;background:#7c5cff;color:#fff;font:600 13px Inter,system-ui;cursor:pointer">Try again</button>
-      </div></body>`;
+        <button id="retry-btn" style="margin-top:18px;padding:9px 22px;border:none;border-radius:999px;background:#7c5cff;color:#fff;font:600 13px Inter,system-ui;cursor:pointer">Try again</button>
+      </div><script>document.getElementById('retry-btn').addEventListener('click',()=>{location.href=${retry}})</script></body>`;
     try { wv.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html)); } catch { /* noop */ }
 }
 
@@ -124,7 +131,8 @@ function escapeHtml(s) {
 }
 
 function commitNav(tab, url) {
-    if (!url || url === 'about:blank') return;
+    // data: documents (the in-guest error page) must not clobber the real URL
+    if (!url || url === 'about:blank' || /^data:/i.test(url)) return;
     tab.url = url;
     tab.isStart = false;
     addHistory({ url, title: tab.title, favicon: tab.favicon });
@@ -167,6 +175,11 @@ export function activateTab(id) {
     const tab = tabs.get(id);
     if (!tab) return;
     db.activeTabId = id;
+    // activating a tab that lives in another space switches the space with it
+    if (tab.spaceId !== db.activeSpaceId) {
+        db.activeSpaceId = tab.spaceId;
+        emit('space-changed', tab.spaceId);
+    }
 
     const splitMate = tab.splitWith ? tabs.get(tab.splitWith) : null;
 
@@ -284,6 +297,7 @@ export function moveTabToSpace(id, spaceId) {
     if (db.activeSpaceId !== spaceId && db.activeTabId === id) {
         const next = tabsInSpace().filter(t => t !== tab).pop();
         if (next) activateTab(next.id);
+        else createTab({ activate: true }); // the vacated space still needs a live tab
     }
     emit('tabs-changed'); persistTabs();
 }
@@ -369,7 +383,8 @@ export function stopFind() {
 export function zoomBy(delta) {
     const t = activeTab();
     if (!t?.webview) return;
-    wvCall(t.webview, 'getZoomFactor', (f) => wvCall(t.webview, 'setZoomFactor', Math.min(3, Math.max(0.25, f + delta))));
+    const f = wvCall(t.webview, 'getZoomFactor');
+    if (typeof f === 'number') wvCall(t.webview, 'setZoomFactor', Math.min(3, Math.max(0.25, f + delta)));
 }
 export function zoomReset() { const t = activeTab(); if (t?.webview) wvCall(t.webview, 'setZoomFactor', 1); }
 
@@ -407,7 +422,7 @@ export function deleteSpace(spaceId) {
         tabs.delete(t.id);
     }
     if (db.activeSpaceId === spaceId) switchSpace(db.spaces[0].id);
-    save();
+    persistTabs(); // db.tabs is rebuilt from the map — deleted tabs must not come back
     emit('space-changed', db.activeSpaceId);
 }
 

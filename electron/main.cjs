@@ -97,10 +97,24 @@ function createWindow() {
   // The shell never opens real OS windows itself; links that want a new window
   // are routed back into the tab system.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http') || url.startsWith('file')) {
+    if (/^https?:\/\//i.test(url)) {
       mainWindow.webContents.send('open-url-in-tab', url);
     }
     return { action: 'deny' };
+  });
+
+  // Our renderer attaches <webview> guests; a compromised renderer could ask
+  // for unsafe guest prefs, so the safe set is forced here regardless.
+  mainWindow.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+    webPreferences.nodeIntegration = false;
+    webPreferences.nodeIntegrationInWorker = false;
+    webPreferences.nodeIntegrationInSubFrames = false;
+    webPreferences.contextIsolation = true;
+    webPreferences.sandbox = true;
+    webPreferences.webSecurity = true;
+    webPreferences.allowRunningInsecureContent = false;
+    delete webPreferences.preload;
+    if (params.partition !== 'persist:pilot') params.partition = 'persist:pilot';
   });
 }
 
@@ -161,7 +175,12 @@ function registerIpc() {
   });
   ipcMain.handle('open-path', async (_e, p) => {
     if (typeof p !== 'string' || !p) return 'invalid path';
-    return shell.openPath(p);
+    // only files we downloaded — a compromised renderer must not launch
+    // arbitrary local paths
+    const dir = path.resolve(app.getPath('downloads'));
+    const target = path.resolve(p);
+    if (target !== dir && !target.startsWith(dir + path.sep)) return 'path outside downloads';
+    return shell.openPath(target);
   });
   ipcMain.handle('open-external', async (_e, url) => {
     if (typeof url === 'string' && /^https?:\/\//i.test(url)) {

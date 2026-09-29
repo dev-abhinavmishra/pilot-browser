@@ -1,5 +1,5 @@
 // palette.js — Ctrl+K command palette: tabs, bookmarks, history, actions
-import { db, hostOf } from './store.js';
+import { db, save, hostOf } from './store.js';
 import {
     getTabs, activeTab, activateTab, createTab, closeTab, pinTab, unpinTab,
     navigateActive, switchSpace, splitActiveWith, closeSplit, zoomBy, zoomReset,
@@ -26,7 +26,7 @@ const ACTIONS = () => [
     } },
     { title: 'Toggle theme (dark/light)', icon: 'fa-circle-half-stroke', run: () => {
         db.settings.theme = db.settings.theme === 'dark' ? 'light' : 'dark';
-        applyTheme(); toast(`Theme: ${db.settings.theme}`, 'fa-circle-half-stroke');
+        save(); applyTheme(); toast(`Theme: ${db.settings.theme}`, 'fa-circle-half-stroke');
     } },
     { title: 'Zoom in', icon: 'fa-magnifying-glass-plus', run: () => zoomBy(0.1) },
     { title: 'Zoom out', icon: 'fa-magnifying-glass-minus', run: () => zoomBy(-0.1) },
@@ -157,8 +157,19 @@ function paint() {
         }
         const row = document.createElement('div');
         row.className = 'pal-item' + (i === sel ? ' selected' : '');
-        row.innerHTML = `<div class="pal-icon">${it.favicon ? `<img src="${it.favicon}" onerror="this.remove()">` : `<i class="fa-solid ${it.icon}"></i>`}</div>
-            <div class="pal-title"></div><div class="pal-sub"></div>`;
+        row.innerHTML = `<div class="pal-icon"></div><div class="pal-title"></div><div class="pal-sub"></div>`;
+        const iconWrap = row.querySelector('.pal-icon');
+        if (it.favicon) {
+            // page-controlled URL — assign via DOM, never string-interpolate
+            const img = document.createElement('img');
+            img.src = it.favicon; img.alt = '';
+            img.onerror = () => img.remove();
+            iconWrap.appendChild(img);
+        } else {
+            const i2 = document.createElement('i');
+            i2.className = `fa-solid ${it.icon}`;
+            iconWrap.appendChild(i2);
+        }
         row.querySelector('.pal-title').textContent = it.title;
         row.querySelector('.pal-sub').textContent = it.sub || '';
         row.addEventListener('click', () => { it.run(); closePalette(); });

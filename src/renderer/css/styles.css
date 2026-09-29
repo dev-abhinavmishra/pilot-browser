@@ -295,7 +295,7 @@ i { font-style: normal; }
 webview, .wv-pane { flex: 1; width: 100%; height: 100%; }
 webview { border: none; outline: none; background: var(--bg-3); }
 webview.wv-hidden { display: none; }
-webview.in-split-right { border-left: 2px solid var(--border); }
+webview.in-split-right { border-left: 2px solid var(--border); order: 2; }
 
 #split-divider {
     display: none; width: 5px; cursor: col-resize;

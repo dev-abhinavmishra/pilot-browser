@@ -82,7 +82,9 @@ export function renderSettingsPanel(el) {
     const srch = sec('Search');
     row(srch, 'Default search engine', 'Used for omnibox queries that aren\'t URLs', select(s.searchEngine, ENGINES, (v) => { s.searchEngine = v; save(); }));
     row(srch, 'History retention', null, select(String(s.keepHistoryDays), [['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['365', '1 year']], (v) => {
-        s.keepHistoryDays = parseInt(v, 10); save();
+        s.keepHistoryDays = parseInt(v, 10);
+        db.history = db.history.filter(h => h.visitedAt > Date.now() - s.keepHistoryDays * 864e5);
+        save();
     }));
 
     // --- session

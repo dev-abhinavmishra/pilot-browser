@@ -86,8 +86,17 @@ export function renderStartTiles() {
         const a = document.createElement('a');
         a.className = 'start-tile';
         a.href = '#';
-        a.innerHTML = `<img src="${faviconFor(tile.url)}" onerror="this.outerHTML='<div class=\\'tile-letter\\'>${tile.name[0]}</div>'" alt=""><span></span>`;
-        a.querySelector('span').textContent = tile.name;
+        const img = document.createElement('img');
+        img.src = faviconFor(tile.url); img.alt = '';
+        img.onerror = () => {
+            const l = document.createElement('span');
+            l.className = 'tile-letter';
+            l.textContent = (tile.name || '?')[0];
+            img.replaceWith(l);
+        };
+        const name = document.createElement('span');
+        name.textContent = tile.name;
+        a.appendChild(img); a.appendChild(name);
         a.addEventListener('click', (e) => { e.preventDefault(); navigateActive(tile.url); });
         wrap.appendChild(a);
     }

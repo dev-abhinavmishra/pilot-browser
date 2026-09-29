@@ -6,16 +6,37 @@ configured OpenAI-compatible LLM when reachable; otherwise falls back to
 DuckDuckGo instant answers so the panel is always useful.
 """
 import logging
+import re
+import time
+from collections import deque
 from typing import List, Optional, Dict, Any
 
 import aiohttp
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# lightweight abuse guard for the unauthenticated endpoint
+_RATE_MAX = 20            # requests per window per client
+_RATE_WINDOW = 60.0       # seconds
+_MAX_QUERY = 2000         # chars
+_MAX_EXCERPT = 8000       # chars
+_rate: Dict[str, deque] = {}
+
+
+def _rate_limited(key: str) -> bool:
+    now = time.monotonic()
+    q = _rate.setdefault(key, deque())
+    while q and now - q[0] > _RATE_WINDOW:
+        q.popleft()
+    if len(q) >= _RATE_MAX:
+        return True
+    q.append(now)
+    return False
 
 
 class PageContext(BaseModel):
@@ -90,10 +111,31 @@ async def _ddg_fallback(query: str) -> AskResponse:
     return AskResponse(answer=answer, sources=sources)
 
 
+def _extractive_summary(text: str, bullets: int = 5) -> str:
+    """Fallback summary: surface the page's first content sentences as bullets."""
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if len(s.strip()) > 30]
+    if not sentences:
+        return ""
+    return "\n".join(f"- {s}" for s in sentences[:bullets])
+
+
 @router.post("/ask", response_model=AskResponse)
-async def ask(req: AskRequest):
+async def ask(req: AskRequest, request: Request):
     """Answer a question, optionally with the current page as context."""
+    key = request.client.host if request.client else "local"
+    if _rate_limited(key):
+        raise HTTPException(status_code=429, detail="Too many requests — slow down.")
+    req.query = req.query[:_MAX_QUERY]
+    if req.page and req.page.excerpt:
+        req.page.excerpt = req.page.excerpt[:_MAX_EXCERPT]
+
     llm = await _llm_answer(req)
     if llm:
         return AskResponse(answer=llm, sources=[])
+
+    # summarize-with-page requests should still summarize when the LLM is down
+    if req.page and req.page.excerpt and "summar" in req.query.lower():
+        summary = _extractive_summary(req.page.excerpt)
+        if summary:
+            return AskResponse(answer=summary, sources=[])
     return await _ddg_fallback(req.query)
