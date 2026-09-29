@@ -20,6 +20,7 @@ export const SEARCH_ENGINES = {
 };
 
 const tabs = new Map(); // id -> tab object
+const closedStack = []; // most recent closed tabs {url,title,favicon,spaceId,pinned}
 let stageEl = null;
 let webviewsEl = null;
 let startOverlayEl = null;
@@ -214,6 +215,11 @@ export function activateTab(id) {
 export function closeTab(id) {
     const tab = tabs.get(id);
     if (!tab) return;
+    // reopenable via Ctrl+Shift+T — skip start tabs (nothing to reopen)
+    if (tab.url) {
+        closedStack.push({ url: tab.url, title: tab.title, favicon: tab.favicon, spaceId: tab.spaceId, pinned: tab.pinned });
+        if (closedStack.length > 25) closedStack.shift();
+    }
     // dissolve any split
     if (tab.splitWith) {
         const mate = tabs.get(tab.splitWith);
@@ -234,6 +240,16 @@ export function closeTab(id) {
     }
     emit('tabs-changed');
     persistTabs();
+}
+
+export function canReopenTab() { return closedStack.length > 0; }
+
+export function reopenClosedTab() {
+    const entry = closedStack.pop();
+    if (!entry) return null;
+    const spaceId = db.spaces.some(s => s.id === entry.spaceId) ? entry.spaceId : db.activeSpaceId;
+    const t = createTab({ url: entry.url, spaceId, pinned: !!entry.pinned, activate: true });
+    return t;
 }
 
 export function navigateActive(input) {
@@ -436,6 +452,8 @@ function updateStartOverlay() {
     if (show) {
         const input = document.getElementById('start-input');
         setTimeout(() => input && input.focus(), 30);
+        // a link-hover hint from a previous page shouldn't linger over the console
+        statusBubbleEl?.classList.add('hidden');
     }
 }
 export function isStartShowing() {
@@ -493,7 +511,7 @@ export function initTabs() {
             const url = typeof payload === 'string' ? payload : payload?.url;
             if (!url) return;
             const fromTab = payload?.from ? getTabs().find(t => t.url === payload.from) : null;
-            createTab({ url, spaceId: fromTab ? fromTab.spaceId : db.activeSpaceId });
+            createTab({ url, spaceId: fromTab ? fromTab.spaceId : db.activeSpaceId, activate: !payload?.background });
         });
     }
 }

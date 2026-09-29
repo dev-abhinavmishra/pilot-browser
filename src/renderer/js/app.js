@@ -3,12 +3,12 @@ import { db, isElectron } from './store.js';
 import {
     initTabs, restoreSession, on, activeTab, createTab, closeTab, cycleTab,
     activateAt, navReload, zoomBy, zoomReset, devTools,
-    spaceAccent, isStartShowing, wvCall,
+    spaceAccent, wvCall, reopenClosedTab,
 } from './tabs.js';
 import { initStartPage, renderStartTiles } from './startpage.js';
 import { initSidebar, applySidebarSetting, toggleSidebarCollapsed } from './sidebar.js';
 import { initUi, updateNavButtons, updateOmniboxUrl, updateBookmarkBtn, focusOmnibox,
-    webviewContextMenu, toggleFindBar, openLibrary } from './ui.js';
+    webviewContextMenu, toggleFindBar, openLibrary, toast } from './ui.js';
 import { initOmnibox } from './omnibox.js';
 import { initPalette, openPalette, paletteOpen, closePalette } from './palette.js';
 import { initAssistant, toggle as toggleAssistant } from './assistant.js';
@@ -49,7 +49,19 @@ export function initApp() {
     restoreSession();
     updateNavButtons(); updateOmniboxUrl(); updateBookmarkBtn();
 
-    window.pilot?.meta?.().then(m => { window.__pilotVersion = m.version; });
+    window.pilot?.meta?.().then(m => {
+        window.__pilotVersion = m.version;
+        window.__pilotPlatform = m.platform;
+        if (m.platform) document.getElementById('app').classList.add('platform-' + m.platform);
+        // hardcoded shortcut hints show the mac glyph where relevant
+        if (m.platform === 'darwin') {
+            document.querySelectorAll('.start-hints kbd, .icon-btn[title], button[title]').forEach(el => {
+                const t = el.getAttribute('title') || el.textContent;
+                const swapped = t.replace(/Ctrl\+?/g, '⌘');
+                if (el.hasAttribute('title')) el.title = swapped; else el.textContent = swapped;
+            });
+        }
+    });
     if (db.settings.darkPages) window.pilot?.setAppTheme?.('dark-pages');
 }
 
@@ -74,7 +86,15 @@ function initShortcuts() {
         if (mod && !shift && e.key.toLowerCase() === 'k') { e.preventDefault(); paletteOpen() ? closePalette() : openPalette(); return; }
         if (paletteOpen()) return; // palette handles its own keys
 
-        if (mod && !shift && e.key.toLowerCase() === 't') { e.preventDefault(); createTab({ activate: true }); }
+        if (mod && shift && e.key.toLowerCase() === 't') {
+            e.preventDefault();
+            if (!reopenClosedTab()) toast('No closed tab to reopen', 'fa-rotate-left');
+        }
+        else if (mod && shift && e.key.toLowerCase() === 'r') { e.preventDefault(); wvCall(activeTab()?.webview, 'reloadIgnoringCache'); }
+        else if (mod && !shift && e.key.toLowerCase() === 'p') { e.preventDefault(); const t = activeTab(); if (t?.webview) wvCall(t.webview, 'print'); }
+        else if (mod && !shift && e.key.toLowerCase() === 'q') { e.preventDefault(); window.pilot?.close(); }
+        else if (e.key === 'F11') { e.preventDefault(); window.pilot?.toggleFullscreen?.(); }
+        else if (mod && !shift && e.key.toLowerCase() === 't') { e.preventDefault(); createTab({ activate: true }); }
         else if (mod && !shift && e.key.toLowerCase() === 'w') { e.preventDefault(); const t = activeTab(); if (t) closeTab(t.id); }
         else if (mod && !shift && e.key.toLowerCase() === 'l') { e.preventDefault(); focusOmnibox(); }
         else if (mod && !shift && e.key.toLowerCase() === 'f') { e.preventDefault(); toggleFindBar(); }
@@ -92,6 +112,5 @@ function initShortcuts() {
         else if (e.key === 'F12') { e.preventDefault(); devTools(); }
         else if (e.altKey && !mod && e.key === 'ArrowLeft') { e.preventDefault(); const t = activeTab(); wvCall(t?.webview, 'canGoBack') && wvCall(t.webview, 'goBack'); }
         else if (e.altKey && !mod && e.key === 'ArrowRight') { e.preventDefault(); const t = activeTab(); wvCall(t?.webview, 'canGoForward') && wvCall(t.webview, 'goForward'); }
-        else if (e.key === 'Escape' && isStartShowing()) { /* keep start page */ }
     });
 }

@@ -2,10 +2,9 @@
 // Frameless window, persistent browsing session, download management,
 // and a small IPC surface for the renderer shell.
 
-const { app, BrowserWindow, ipcMain, shell, Menu, session, dialog, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, session, dialog, nativeTheme, clipboard, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 
 const isDev = !app.isPackaged;
 const RENDERER_URL = process.env.PILOT_RENDERER_URL; // e.g. http://localhost:3000
@@ -46,16 +45,26 @@ const downloads = new Map();
 function createWindow() {
   const bounds = store.get('windowBounds', { width: 1440, height: 900 });
 
+  // a saved position can land off-screen when monitors change — only restore
+  // x/y if some display actually shows that point
+  let pos = {};
+  if (bounds.x != null && bounds.y != null) {
+    const visible = screen.getAllDisplays().some((d) => {
+      const a = d.workArea;
+      return bounds.x >= a.x - 100 && bounds.x < a.x + a.width && bounds.y >= a.y - 40 && bounds.y < a.y + a.height;
+    });
+    if (visible) pos = { x: bounds.x, y: bounds.y };
+  }
+
   mainWindow = new BrowserWindow({
     width: bounds.width,
     height: bounds.height,
-    x: bounds.x,
-    y: bounds.y,
+    ...pos,
     minWidth: 900,
     minHeight: 560,
     show: false,
     frame: false,
-    backgroundColor: '#0d0f14',
+    backgroundColor: '#04060c',
     title: 'Pilot',
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     webPreferences: {
@@ -85,6 +94,8 @@ function createWindow() {
   mainWindow.on('close', persistBounds);
   mainWindow.on('maximize', () => mainWindow.webContents.send('window-state', { maximized: true }));
   mainWindow.on('unmaximize', () => mainWindow.webContents.send('window-state', { maximized: false }));
+  mainWindow.on('enter-full-screen', () => mainWindow.webContents.send('window-state', { fullscreen: true }));
+  mainWindow.on('leave-full-screen', () => mainWindow.webContents.send('window-state', { fullscreen: false }));
 
   if (RENDERER_URL) {
     mainWindow.loadURL(RENDERER_URL);
@@ -158,7 +169,17 @@ function registerIpc() {
     mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
   });
   ipcMain.on('window-close', () => mainWindow && mainWindow.close());
+  ipcMain.on('window-fullscreen', () => {
+    if (mainWindow) mainWindow.setFullScreen(!mainWindow.isFullScreen());
+  });
   ipcMain.handle('window-is-maximized', () => (mainWindow ? mainWindow.isMaximized() : false));
+  // clipboard via main process — navigator.clipboard isn't guaranteed on
+  // file:// shell pages and execCommand('paste') is dead
+  ipcMain.handle('clipboard-read-text', () => clipboard.readText());
+  ipcMain.handle('clipboard-write-text', (_e, text) => {
+    if (typeof text === 'string') clipboard.writeText(text);
+    return true;
+  });
   ipcMain.handle('app-meta', () => ({
     version: app.getVersion(),
     platform: process.platform,
@@ -193,12 +214,55 @@ function registerIpc() {
     const res = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
     return res.canceled ? null : res.filePaths[0];
   });
-  // Dark titlebar-free menu: hide the default app menu entirely.
-  Menu.setApplicationMenu(null);
+  // Application menu: null on Windows/Linux (frameless chrome is ours), but
+  // macOS needs a real menu — without one Cmd+Q/Cmd+W/edit shortcuts die,
+  // and the Edit role also powers copy/paste inside webview guests.
+  if (process.platform === 'darwin') {
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      {
+        label: app.name,
+        submenu: [
+          { role: 'about' }, { type: 'separator' },
+          { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
+          { type: 'separator' }, { role: 'quit', label: 'Quit Pilot' },
+        ],
+      },
+      { role: 'editMenu' },
+      {
+        label: 'View',
+        submenu: [
+          { role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' },
+          { type: 'separator' },
+          { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' },
+          { type: 'separator' }, { role: 'togglefullscreen' },
+        ],
+      },
+      { role: 'windowMenu' },
+    ]));
+  } else {
+    Menu.setApplicationMenu(null);
+  }
 }
 
 // ---------------------------------------------------------------------------
+// Browsers are single-instance: a second launch focuses the live window
+// instead of forking a parallel session.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
+
 app.whenReady().then(() => {
+  // Windows needs this for taskbar grouping / notification attribution.
+  app.setAppUserModelId('com.pilot.browser');
+
   store = new JsonStore(path.join(app.getPath('userData'), 'pilot-state.json'));
 
   // Keep web pages rendering the way their authors intended: the OS dark
@@ -221,9 +285,13 @@ app.whenReady().then(() => {
   // their own webContents open handler, routed back into the tab system here.
   app.on('web-contents-created', (_e, contents) => {
     if (contents.getType() !== 'webview') return;
-    contents.setWindowOpenHandler(({ url }) => {
+    contents.setWindowOpenHandler(({ url, disposition }) => {
       if (/^https?:\/\//i.test(url) && mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('open-url-in-tab', { url, from: contents.getURL() });
+        // middle/ctrl-click guests ask for background-tab disposition —
+        // honor it so the new tab doesn't steal focus
+        mainWindow.webContents.send('open-url-in-tab', {
+          url, from: contents.getURL(), background: disposition === 'background-tab',
+        });
       }
       return { action: 'deny' };
     });

@@ -2,7 +2,7 @@
 import { db, save, faviconFor } from './store.js';
 import {
     on, navigateActive, createTab, splitActiveWith,
-    activeTab, tabsInSpace, normalizeInput, SEARCH_ENGINES,
+    tabsInSpace, normalizeInput, SEARCH_ENGINES,
 } from './tabs.js';
 import { openLibrary } from './ui.js';
 import { openPalette } from './palette.js';
@@ -139,7 +139,6 @@ function fire(q) {
     // search mode — honor the open-in switch
     const url = normalizeInput(q);
     if (!url) return;
-    const cur = activeTab();
     if (openIn === 'new') {
         createTab({ url, activate: true });
     } else if (openIn === 'split') {

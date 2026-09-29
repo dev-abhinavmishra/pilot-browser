@@ -6,8 +6,14 @@ contextBridge.exposeInMainWorld('pilot', {
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
+  toggleFullscreen: () => ipcRenderer.send('window-fullscreen'),
   isMaximized: () => ipcRenderer.invoke('window-is-maximized'),
   onWindowState: (cb) => ipcRenderer.on('window-state', (_e, s) => cb(s)),
+
+  // clipboard through main — navigator.clipboard isn't guaranteed on the
+  // file:// shell page
+  clipboardReadText: () => ipcRenderer.invoke('clipboard-read-text'),
+  clipboardWriteText: (text) => ipcRenderer.invoke('clipboard-write-text', text),
 
   // app metadata
   meta: () => ipcRenderer.invoke('app-meta'),

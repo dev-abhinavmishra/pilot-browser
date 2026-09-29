@@ -3,7 +3,7 @@ import { db, save, hostOf } from './store.js';
 import {
     getTabs, activeTab, activateTab, createTab, closeTab, pinTab, unpinTab,
     navigateActive, switchSpace, splitActiveWith, closeSplit, zoomBy, zoomReset,
-    devTools, tabsInSpace, spaceAccent,
+    devTools, tabsInSpace, spaceAccent, reopenClosedTab, wvCall,
 } from './tabs.js';
 import { registerPaletteCloser, openLibrary, toast, toggleFindBar, updateBookmarkBtn } from './ui.js';
 import { toggleSidebarCollapsed } from './sidebar.js';
@@ -14,6 +14,11 @@ let overlay, input, results, sel = 0, items = [];
 const ACTIONS = () => [
     { title: 'New tab', sub: 'Ctrl+T', icon: 'fa-plus', run: () => createTab({ activate: true }) },
     { title: 'Close current tab', sub: 'Ctrl+W', icon: 'fa-xmark', run: () => activeTab() && closeTab(activeTab().id) },
+    { title: 'Reopen closed tab', sub: 'Ctrl+Shift+T', icon: 'fa-rotate-left', run: () => reopenClosedTab() || toast('No closed tab to reopen', 'fa-rotate-left') },
+    { title: 'Reload page', sub: 'Ctrl+R', icon: 'fa-rotate-right', run: () => wvCall(activeTab()?.webview, 'reload') },
+    { title: 'Hard reload (ignore cache)', sub: 'Ctrl+Shift+R', icon: 'fa-bolt', run: () => wvCall(activeTab()?.webview, 'reloadIgnoringCache') },
+    { title: 'Print page…', sub: 'Ctrl+P', icon: 'fa-print', run: () => wvCall(activeTab()?.webview, 'print') },
+    { title: 'Toggle fullscreen', sub: 'F11', icon: 'fa-up-right-and-down-left-from-center', run: () => window.pilot?.toggleFullscreen?.() },
     { title: 'Toggle sidebar', sub: 'Ctrl+Shift+B', icon: 'fa-sidebar fa-flip-horizontal', run: toggleSidebarCollapsed },
     { title: 'Find in page', sub: 'Ctrl+F', icon: 'fa-magnifying-glass', run: toggleFindBar },
     { title: 'Bookmark page', sub: 'Ctrl+D', icon: 'fa-star', run: () => document.getElementById('btn-bookmark').click() },

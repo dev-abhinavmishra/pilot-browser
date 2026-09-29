@@ -4,11 +4,22 @@ import {
     on, activeTab, navigateActive, createTab, closeTab, pinTab, unpinTab,
     splitActiveWith, closeSplit, tabsInSpace, pinnedInSpace, getTabs, activateTab,
     findInPage, findNext, stopFind, devTools, zoomBy, zoomReset, wvCall,
-    switchSpace, spaceAccent, isStartShowing, getTab, duplicateTab,
+    switchSpace, spaceAccent, getTab, duplicateTab,
+    reopenClosedTab, canReopenTab,
 } from './tabs.js';
 import { renderSettingsPanel } from './settings.js';
 
 const $ = (sel) => document.querySelector(sel);
+
+// macOS shows the ⌘ glyph for the platform modifier in key hints
+const mk = (k) => window.__pilotPlatform === 'darwin' ? k.replace('Ctrl+', '⌘') : k;
+
+// clipboard through the main-process bridge (navigator.clipboard is not
+// guaranteed on the file:// shell page); falls back for plain-browser dev
+const clip = {
+    write: (t) => window.pilot?.clipboardWriteText ? window.pilot.clipboardWriteText(t) : navigator.clipboard?.writeText(t),
+    read: () => window.pilot?.clipboardReadText ? window.pilot.clipboardReadText() : navigator.clipboard?.readText(),
+};
 
 // ---------------------------------------------------------------------------
 // Toasts
@@ -49,6 +60,34 @@ export function initUi() {
     initLibrary();
     initToolbar();
     initDownloads();
+
+    // shell text inputs get the same edit menu a native browser chrome has
+    document.addEventListener('contextmenu', (e) => {
+        const inp = e.target.closest?.('input[type="text"], textarea');
+        if (!inp) return;
+        e.preventDefault();
+        const hasSel = inp.selectionStart !== inp.selectionEnd;
+        showContextMenu(e.clientX, e.clientY, [
+            ...(inp.id === 'omni-input' ? [
+                { label: 'Paste and go', icon: 'fa-arrow-right', click: async () => {
+                    const t = (await clip.read())?.trim();
+                    if (t) { inp.value = t; navigateActive(t); }
+                } },
+                'sep',
+            ] : []),
+            { label: 'Cut', icon: 'fa-scissors', disabled: !hasSel, click: () => {
+                clip.write(inp.value.slice(inp.selectionStart, inp.selectionEnd));
+                inp.setRangeText('', inp.selectionStart, inp.selectionEnd, 'start');
+            } },
+            { label: 'Copy', icon: 'fa-copy', disabled: !hasSel, click: () => clip.write(inp.value.slice(inp.selectionStart, inp.selectionEnd)) },
+            { label: 'Paste', icon: 'fa-paste', click: async () => {
+                const t = await clip.read();
+                if (t) inp.setRangeText(t, inp.selectionStart, inp.selectionEnd, 'end');
+            } },
+            'sep',
+            { label: 'Select all', icon: 'fa-i-cursor', click: () => inp.select() },
+        ]);
+    });
 }
 
 function buildCtxItems(container, items, openLeft) {
@@ -61,7 +100,7 @@ function buildCtxItems(container, items, openLeft) {
         }
         const el = document.createElement('div');
         el.className = 'ctx-item' + (item.disabled ? ' disabled' : '') + (item.submenu ? ' has-sub' : '');
-        el.innerHTML = `<i class="fa-solid ${item.icon || 'fa-circle'}"></i><span></span>${item.key ? `<span class="ctx-key">${item.key}</span>` : ''}${item.submenu ? '<i class="fa-solid fa-chevron-right ctx-caret"></i>' : ''}`;
+        el.innerHTML = `<i class="fa-solid ${item.icon || 'fa-circle'}"></i><span></span>${item.key ? `<span class="ctx-key">${mk(item.key)}</span>` : ''}${item.submenu ? '<i class="fa-solid fa-chevron-right ctx-caret"></i>' : ''}`;
         el.querySelector('span:not(.ctx-key)').textContent = item.label;
         if (item.danger) el.style.color = '#f87171';
         if (item.submenu && item.submenu.length) {
@@ -191,14 +230,20 @@ function appMenu(e) {
         { label: 'Bookmark this page', icon: 'fa-star', key: 'Ctrl+D', click: () => $('#btn-bookmark').click(), disabled: !t?.url },
         { label: t?.splitWith ? 'Close split view' : 'Split view', icon: 'fa-table-columns', click: () => $('#btn-split').click() },
         { label: 'Duplicate tab', icon: 'fa-clone', disabled: !t?.url, click: () => t && duplicateTab(t.id) },
+        { label: 'Reopen closed tab', icon: 'fa-rotate-left', key: 'Ctrl+Shift+T', disabled: !canReopenTab(), click: () => reopenClosedTab() },
         'sep',
         { label: 'Zoom in', icon: 'fa-magnifying-glass-plus', key: 'Ctrl+=', click: () => zoomBy(0.1) },
         { label: 'Zoom out', icon: 'fa-magnifying-glass-minus', key: 'Ctrl+-', click: () => zoomBy(-0.1) },
         { label: 'Reset zoom', icon: 'fa-expand', key: 'Ctrl+0', click: zoomReset },
         'sep',
+        { label: 'Print page…', icon: 'fa-print', key: 'Ctrl+P', disabled: !t?.webview, click: () => wvCall(t.webview, 'print') },
+        { label: 'Toggle fullscreen', icon: 'fa-up-right-and-down-left-from-center', key: 'F11', click: () => window.pilot?.toggleFullscreen?.() },
+        'sep',
         { label: 'Library', icon: 'fa-layer-group', key: 'Ctrl+H', click: () => openLibrary('history') },
         { label: 'Settings', icon: 'fa-gear', click: () => openLibrary('settings') },
         { label: 'Developer tools', icon: 'fa-code', key: 'F12', click: devTools },
+        'sep',
+        { label: 'Quit Pilot', icon: 'fa-power-off', key: 'Ctrl+Q', click: () => window.pilot?.close() },
     ]);
 }
 
@@ -213,14 +258,14 @@ export function webviewContextMenu({ tab, params }) {
         items.push(
             { label: 'Open link in new tab', icon: 'fa-plus', click: () => createTab({ url: params.linkURL, spaceId: tab.spaceId }) },
             { label: 'Open link in split', icon: 'fa-table-columns', click: () => splitActiveWith(createTab({ url: params.linkURL, activate: false, spaceId: tab.spaceId }).id) },
-            { label: 'Copy link', icon: 'fa-link', click: () => navigator.clipboard.writeText(params.linkURL) },
+            { label: 'Copy link', icon: 'fa-link', click: () => clip.write(params.linkURL) },
             'sep',
         );
     }
     if (params.mediaType === 'image' && params.srcURL) {
         items.push(
             { label: 'Open image in new tab', icon: 'fa-image', click: () => createTab({ url: params.srcURL, spaceId: tab.spaceId }) },
-            { label: 'Copy image address', icon: 'fa-link', click: () => navigator.clipboard.writeText(params.srcURL) },
+            { label: 'Copy image address', icon: 'fa-link', click: () => clip.write(params.srcURL) },
             'sep',
         );
     }
@@ -232,7 +277,7 @@ export function webviewContextMenu({ tab, params }) {
             'sep',
         );
     } else if (params.selectionText) {
-        items.push({ label: 'Copy', icon: 'fa-copy', click: () => navigator.clipboard.writeText(params.selectionText) }, 'sep');
+        items.push({ label: 'Copy', icon: 'fa-copy', click: () => clip.write(params.selectionText) }, 'sep');
     }
     items.push(
         { label: 'Back', icon: 'fa-arrow-left', click: () => wvCall(wv, 'canGoBack') && wvCall(wv, 'goBack'), disabled: !wvCall(wv, 'canGoBack') },
