@@ -21,6 +21,18 @@ const clip = {
     read: () => window.pilot?.clipboardReadText ? window.pilot.clipboardReadText() : navigator.clipboard?.readText(),
 };
 
+// Electron's wv.print() is silent (no dialog, straight to the default
+// printer) — printToPDF + a save dialog is the usable equivalent
+export async function printActive() {
+    const wv = activeTab()?.webview;
+    if (!wv || !window.pilot?.savePdf) return;
+    try {
+        const data = await wv.printToPDF({});
+        const path = await window.pilot.savePdf(data);
+        if (path) toast('Saved ' + path, 'fa-print');
+    } catch { toast('Print failed', 'fa-print'); }
+}
+
 // ---------------------------------------------------------------------------
 // Toasts
 // ---------------------------------------------------------------------------
@@ -48,6 +60,14 @@ export function initUi() {
         const sug = $('#omni-suggest');
         if (!sug.contains(e.target) && e.target.id !== 'omni-input') sug.classList.remove('open');
     });
+    // clicks inside a guest never reach the shell document — the webview
+    // element gaining DOM focus is the signal to drop open menus
+    document.addEventListener('focus', (e) => {
+        if (e.target.tagName === 'WEBVIEW') {
+            hideContextMenu();
+            $('#omni-suggest').classList.remove('open');
+        }
+    }, true);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             hideContextMenu();
@@ -157,7 +177,7 @@ function initToolbar() {
         splitActiveWith(candidates[0].id);
         toast('Split view on — right pane: ' + (candidates[0].title || 'tab'), 'fa-table-columns');
     });
-    menuBtn.addEventListener('click', (e) => appMenu(e));
+    menuBtn.addEventListener('click', (e) => { e.stopPropagation(); appMenu(e); });
 
     on('nav-changed', (t) => {
         if (t !== activeTab()) return;
@@ -236,7 +256,7 @@ function appMenu(e) {
         { label: 'Zoom out', icon: 'fa-magnifying-glass-minus', key: 'Ctrl+-', click: () => zoomBy(-0.1) },
         { label: 'Reset zoom', icon: 'fa-expand', key: 'Ctrl+0', click: zoomReset },
         'sep',
-        { label: 'Print page…', icon: 'fa-print', key: 'Ctrl+P', disabled: !t?.webview, click: () => wvCall(t.webview, 'print') },
+        { label: 'Print page…', icon: 'fa-print', key: 'Ctrl+P', disabled: !t?.webview, click: printActive },
         { label: 'Toggle fullscreen', icon: 'fa-up-right-and-down-left-from-center', key: 'F11', click: () => window.pilot?.toggleFullscreen?.() },
         'sep',
         { label: 'Library', icon: 'fa-layer-group', key: 'Ctrl+H', click: () => openLibrary('history') },

@@ -180,6 +180,17 @@ function registerIpc() {
     if (typeof text === 'string') clipboard.writeText(text);
     return true;
   });
+  // printToPDF lives in the renderer; the save dialog lives here
+  ipcMain.handle('save-pdf', async (_e, buf) => {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save page as PDF',
+      defaultPath: 'page.pdf',
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+    if (canceled || !filePath) return null;
+    fs.writeFileSync(filePath, Buffer.from(buf));
+    return filePath;
+  });
   ipcMain.handle('app-meta', () => ({
     version: app.getVersion(),
     platform: process.platform,
@@ -285,6 +296,21 @@ app.whenReady().then(() => {
   // their own webContents open handler, routed back into the tab system here.
   app.on('web-contents-created', (_e, contents) => {
     if (contents.getType() !== 'webview') return;
+
+    // Focused guests eat keystrokes — forward shell shortcuts so Ctrl+T,
+    // Ctrl+K, F11 etc. keep working while a page has focus.
+    contents.on('before-input-event', (event, input) => {
+      if (input.type !== 'keyDown' || !mainWindow || mainWindow.isDestroyed()) return;
+      const mod = input.control || input.meta;
+      const key = (input.key || '').toLowerCase();
+      const combo = mod && input.shift ? `ms:${key}` : mod ? `m:${key}` : (key === 'f11' || key === 'f12') ? `k:${key}` : null;
+      const SHELL = new Set(['ms:t', 'ms:r', 'ms:b', 'ms:j', 'm:k', 'm:t', 'm:w', 'm:l', 'm:f', 'm:d', 'm:r', 'm:h', 'm:p', 'm:q', 'k:f11', 'k:f12']);
+      if (combo && SHELL.has(combo)) {
+        event.preventDefault();
+        mainWindow.webContents.send('guest-shortcut', combo);
+      }
+    });
+
     contents.setWindowOpenHandler(({ url, disposition }) => {
       if (/^https?:\/\//i.test(url) && mainWindow && !mainWindow.isDestroyed()) {
         // middle/ctrl-click guests ask for background-tab disposition —

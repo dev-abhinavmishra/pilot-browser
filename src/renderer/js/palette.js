@@ -5,7 +5,7 @@ import {
     navigateActive, switchSpace, splitActiveWith, closeSplit, zoomBy, zoomReset,
     devTools, tabsInSpace, spaceAccent, reopenClosedTab, wvCall,
 } from './tabs.js';
-import { registerPaletteCloser, openLibrary, toast, toggleFindBar, updateBookmarkBtn } from './ui.js';
+import { registerPaletteCloser, openLibrary, toast, toggleFindBar, updateBookmarkBtn, printActive } from './ui.js';
 import { toggleSidebarCollapsed } from './sidebar.js';
 import { applyTheme } from './app.js';
 
@@ -17,7 +17,7 @@ const ACTIONS = () => [
     { title: 'Reopen closed tab', sub: 'Ctrl+Shift+T', icon: 'fa-rotate-left', run: () => reopenClosedTab() || toast('No closed tab to reopen', 'fa-rotate-left') },
     { title: 'Reload page', sub: 'Ctrl+R', icon: 'fa-rotate-right', run: () => wvCall(activeTab()?.webview, 'reload') },
     { title: 'Hard reload (ignore cache)', sub: 'Ctrl+Shift+R', icon: 'fa-bolt', run: () => wvCall(activeTab()?.webview, 'reloadIgnoringCache') },
-    { title: 'Print page…', sub: 'Ctrl+P', icon: 'fa-print', run: () => wvCall(activeTab()?.webview, 'print') },
+    { title: 'Print page…', sub: 'Ctrl+P', icon: 'fa-print', run: printActive },
     { title: 'Toggle fullscreen', sub: 'F11', icon: 'fa-up-right-and-down-left-from-center', run: () => window.pilot?.toggleFullscreen?.() },
     { title: 'Toggle sidebar', sub: 'Ctrl+Shift+B', icon: 'fa-sidebar fa-flip-horizontal', run: toggleSidebarCollapsed },
     { title: 'Find in page', sub: 'Ctrl+F', icon: 'fa-magnifying-glass', run: toggleFindBar },

@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('pilot', {
   // file:// shell page
   clipboardReadText: () => ipcRenderer.invoke('clipboard-read-text'),
   clipboardWriteText: (text) => ipcRenderer.invoke('clipboard-write-text', text),
+  savePdf: (data) => ipcRenderer.invoke('save-pdf', data),
+  // guests forward shell shortcuts as 'ms:t'/'m:k'/'k:f11' combos
+  onGuestShortcut: (cb) => ipcRenderer.on('guest-shortcut', (_e, combo) => cb(combo)),
 
   // app metadata
   meta: () => ipcRenderer.invoke('app-meta'),

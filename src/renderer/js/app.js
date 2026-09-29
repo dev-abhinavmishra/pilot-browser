@@ -8,7 +8,7 @@ import {
 import { initStartPage, renderStartTiles } from './startpage.js';
 import { initSidebar, applySidebarSetting, toggleSidebarCollapsed } from './sidebar.js';
 import { initUi, updateNavButtons, updateOmniboxUrl, updateBookmarkBtn, focusOmnibox,
-    webviewContextMenu, toggleFindBar, openLibrary, toast } from './ui.js';
+    webviewContextMenu, toggleFindBar, openLibrary, toast, printActive } from './ui.js';
 import { initOmnibox } from './omnibox.js';
 import { initPalette, openPalette, paletteOpen, closePalette } from './palette.js';
 import { initAssistant, toggle as toggleAssistant } from './assistant.js';
@@ -36,6 +36,7 @@ export function initApp() {
     initWindowControls();
     initStartPage();
     initShortcuts();
+    initGuestShortcuts();
 
     applySidebarSetting();
     document.documentElement.style.setProperty('--accent', spaceAccent());
@@ -78,6 +79,20 @@ function initWindowControls() {
 // ---------------------------------------------------------------------------
 // Global shortcuts
 // ---------------------------------------------------------------------------
+function initGuestShortcuts() {
+    // focused webview guests forward shell combos here — re-dispatch as a
+    // real keydown so the normal shortcut chain handles them uniformly
+    window.pilot?.onGuestShortcut?.((combo) => {
+        const [kind, key] = combo.split(':');
+        document.dispatchEvent(new KeyboardEvent('keydown', {
+            key, bubbles: true,
+            ctrlKey: kind !== 'k' && window.__pilotPlatform !== 'darwin',
+            metaKey: kind !== 'k' && window.__pilotPlatform === 'darwin',
+            shiftKey: kind === 'ms',
+        }));
+    });
+}
+
 function initShortcuts() {
     document.addEventListener('keydown', (e) => {
         const mod = e.ctrlKey || e.metaKey;
@@ -91,7 +106,7 @@ function initShortcuts() {
             if (!reopenClosedTab()) toast('No closed tab to reopen', 'fa-rotate-left');
         }
         else if (mod && shift && e.key.toLowerCase() === 'r') { e.preventDefault(); wvCall(activeTab()?.webview, 'reloadIgnoringCache'); }
-        else if (mod && !shift && e.key.toLowerCase() === 'p') { e.preventDefault(); const t = activeTab(); if (t?.webview) wvCall(t.webview, 'print'); }
+        else if (mod && !shift && e.key.toLowerCase() === 'p') { e.preventDefault(); printActive(); }
         else if (mod && !shift && e.key.toLowerCase() === 'q') { e.preventDefault(); window.pilot?.close(); }
         else if (e.key === 'F11') { e.preventDefault(); window.pilot?.toggleFullscreen?.(); }
         else if (mod && !shift && e.key.toLowerCase() === 't') { e.preventDefault(); createTab({ activate: true }); }
