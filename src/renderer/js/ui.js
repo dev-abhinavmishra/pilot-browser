@@ -358,10 +358,11 @@ function renderHistory(el) {
         const r = document.createElement('div');
         r.className = 'lib-row';
         r.innerHTML = `
-            <div class="lib-favicon">${h.favicon ? `<img src="${escapeAttr(h.favicon)}" onerror="this.remove()">` : hostOf(h.url)[0].toUpperCase()}</div>
+            <div class="lib-favicon"></div>
             <div class="lib-text"><div class="lib-title"></div><div class="lib-url"></div></div>
             <div class="lib-meta">${new Date(h.visitedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             <button class="icon-btn lib-del" title="Remove"><i class="fa-solid fa-xmark"></i></button>`;
+        libFavicon(r.querySelector('.lib-favicon'), h.favicon, h.url);
         r.querySelector('.lib-title').textContent = h.title || h.url;
         r.querySelector('.lib-url').textContent = hostOf(h.url);
         r.addEventListener('click', (e) => {
@@ -387,10 +388,11 @@ function renderBookmarks(el) {
             const r = document.createElement('div');
             r.className = 'lib-row';
             r.innerHTML = `
-                <div class="lib-favicon">${b.favicon ? `<img src="${escapeAttr(b.favicon)}" onerror="this.remove()">` : hostOf(b.url)[0].toUpperCase()}</div>
+                <div class="lib-favicon"></div>
                 <div class="lib-text"><div class="lib-title"></div><div class="lib-url"></div></div>
                 <div class="lib-meta">${new Date(b.addedAt).toLocaleDateString()}</div>
                 <button class="icon-btn lib-del" title="Remove bookmark"><i class="fa-solid fa-xmark"></i></button>`;
+            libFavicon(r.querySelector('.lib-favicon'), b.favicon, b.url);
             r.querySelector('.lib-title').textContent = b.title || b.url;
             r.querySelector('.lib-url').textContent = b.url;
             r.addEventListener('click', (e) => {
@@ -450,4 +452,13 @@ let _hidePalette = () => {};
 export function registerPaletteCloser(fn) { _hidePalette = fn; }
 function hidePaletteExt() { _hidePalette(); }
 
-function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
+function libFavicon(el, favicon, url) {
+    if (favicon) {
+        const img = document.createElement('img');
+        img.src = favicon;
+        img.onerror = () => img.remove();
+        el.appendChild(img);
+    } else {
+        el.textContent = hostOf(url)[0].toUpperCase();
+    }
+}

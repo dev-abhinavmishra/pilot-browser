@@ -142,9 +142,11 @@ function fire(q) {
     const cur = activeTab();
     if (openIn === 'new') {
         createTab({ url, activate: true });
-    } else if (openIn === 'split' && cur && cur.url) {
-        const t = createTab({ url, activate: false });
-        splitActiveWith(t.id);
+    } else if (openIn === 'split') {
+        const t = createTab({ url, activate: true });
+        // split against the most recent sibling that has a page loaded
+        const mate = tabsInSpace().filter(x => x.url && x.id !== t.id).pop();
+        if (mate) splitActiveWith(mate.id);
     } else {
         navigateActive(url);
     }

@@ -96,13 +96,33 @@ function renderSuggestions(query) {
 
     if (!items.length) { closeSuggestions(); return; }
 
+    function suggestIcon(it) {
+        const i = document.createElement('i');
+        const cls = it.hint === 'Search' ? 'fa-magnifying-glass'
+            : it.hint === 'Bookmark' ? 'fa-star'
+            : it.title.startsWith('Switch') ? 'fa-arrow-right' : 'fa-clock-rotate-left';
+        i.className = `fa-solid ${cls}`;
+        return i;
+    }
+
     items.forEach((it, i) => {
         const row = document.createElement('div');
         row.className = 'suggest-item' + (i === sel ? ' selected' : '');
-        row.innerHTML = `${it.icon ? `<img src="${it.icon}" onerror="this.outerHTML='<i class=\\'fa-solid fa-globe\\'></i>'">` : `<i class="fa-solid ${it.hint === 'Search' ? 'fa-magnifying-glass' : it.hint === 'Bookmark' ? 'fa-star' : it.title.startsWith('Switch') ? 'fa-arrow-right' : 'fa-clock-rotate-left'}"></i>`}
-            <span class="s-title"></span><span class="s-hint"></span>`;
-        row.querySelector('.s-title').textContent = it.title;
-        row.querySelector('.s-hint').textContent = it.hint;
+        if (it.icon) {
+            const img = document.createElement('img');
+            img.src = it.icon;
+            img.onerror = () => img.replaceWith(suggestIcon(it));
+            row.appendChild(img);
+        } else {
+            row.appendChild(suggestIcon(it));
+        }
+        const title = document.createElement('span');
+        title.className = 's-title';
+        title.textContent = it.title;
+        const hint = document.createElement('span');
+        hint.className = 's-hint';
+        hint.textContent = it.hint;
+        row.append(title, hint);
         row.addEventListener('mousedown', (e) => { e.preventDefault(); it.go(); closeSuggestions(); input.blur(); });
         row.addEventListener('mousemove', () => { sel = i; box.querySelectorAll('.suggest-item').forEach((el, j) => el.classList.toggle('selected', j === sel)); });
         box.appendChild(row);

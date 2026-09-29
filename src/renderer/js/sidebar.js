@@ -87,10 +87,22 @@ function renameSpace(s) {
 // ---------------------------------------------------------------------------
 // Tab list
 // ---------------------------------------------------------------------------
-function faviconHtml(tab) {
-    if (tab.loading) return '<span class="tab-spin"></span>';
-    if (tab.favicon && /^https?:|^data:/.test(tab.favicon)) return `<img src="${escapeAttr(tab.favicon)}" alt="" onerror="this.remove()">`;
-    return `<span>${(hostOf(tab.url || '') || 'N')[0].toUpperCase()}</span>`;
+function faviconEl(tab) {
+    if (tab.loading) {
+        const s = document.createElement('span');
+        s.className = 'tab-spin';
+        return s;
+    }
+    if (tab.favicon && /^https?:|^data:/.test(tab.favicon)) {
+        const img = document.createElement('img');
+        img.src = tab.favicon;
+        img.alt = '';
+        img.onerror = () => img.remove();
+        return img;
+    }
+    const l = document.createElement('span');
+    l.textContent = (hostOf(tab.url || '') || 'N')[0].toUpperCase();
+    return l;
 }
 
 function renderTabs() {
@@ -102,7 +114,10 @@ function renderTabs() {
         const b = document.createElement('button');
         b.className = 'pin-btn' + (t.id === db.activeTabId ? ' active' : '') + (t.playing ? ' playing' : '');
         b.title = t.title || hostOf(t.url);
-        b.innerHTML = `${faviconHtml(t)}<span class="pin-badge"><i class="fa-solid fa-volume-high"></i></span>`;
+        const badge = document.createElement('span');
+        badge.className = 'pin-badge';
+        badge.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+        b.append(faviconEl(t), badge);
         b.addEventListener('click', () => activateTab(t.id));
         b.addEventListener('contextmenu', (e) => { e.preventDefault(); tabMenu(e, t); });
         pinnedEl.appendChild(b);
@@ -118,7 +133,7 @@ function renderTabs() {
 
         const fav = document.createElement('div');
         fav.className = 'tab-favicon';
-        fav.innerHTML = faviconHtml(t);
+        fav.appendChild(faviconEl(t));
 
         const text = document.createElement('div');
         text.className = 'tab-text';
@@ -224,4 +239,4 @@ function closeOthers(keep) {
     }
 }
 
-function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
+
