@@ -216,6 +216,19 @@ app.whenReady().then(() => {
   registerIpc();
   createWindow();
 
+  // Guest popups (target=_blank / window.open): the webview 'new-window'
+  // event doesn't fire on current Electron — guests' window.open goes through
+  // their own webContents open handler, routed back into the tab system here.
+  app.on('web-contents-created', (_e, contents) => {
+    if (contents.getType() !== 'webview') return;
+    contents.setWindowOpenHandler(({ url }) => {
+      if (/^https?:\/\//i.test(url) && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('open-url-in-tab', { url, from: contents.getURL() });
+      }
+      return { action: 'deny' };
+    });
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

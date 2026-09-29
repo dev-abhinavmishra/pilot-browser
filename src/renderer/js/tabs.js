@@ -487,8 +487,13 @@ export function initTabs() {
         statusBubbleEl.classList.remove('hidden');
     });
 
-    // new window requests from shell (window.open in shell code)
+    // new window requests from the shell and from guest popups
     if (window.pilot?.onOpenUrlInTab) {
-        window.pilot.onOpenUrlInTab((url) => createTab({ url }));
+        window.pilot.onOpenUrlInTab((payload) => {
+            const url = typeof payload === 'string' ? payload : payload?.url;
+            if (!url) return;
+            const fromTab = payload?.from ? getTabs().find(t => t.url === payload.from) : null;
+            createTab({ url, spaceId: fromTab ? fromTab.spaceId : db.activeSpaceId });
+        });
     }
 }
