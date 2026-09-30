@@ -83,6 +83,10 @@ function buildWebview(tab) {
     wv.addEventListener('did-navigate-in-page', (e) => { if (e.isMainFrame) commitNav(tab, e.url); });
     wv.addEventListener('page-title-updated', (e) => {
         tab.title = e.title || hostOf(tab.url);
+        // the stack entry was pushed before the title arrived — backfill it
+        if (tab.hist && tab.hist[tab.histIdx] && tab.hist[tab.histIdx].url === tab.url) {
+            tab.hist[tab.histIdx].title = tab.title;
+        }
         emit('tab-updated', tab); persistTabs();
     });
     wv.addEventListener('page-favicon-updated', (e) => {
@@ -133,10 +137,12 @@ function trackNavStack(tab, url) {
     if (!tab.hist) { tab.hist = []; tab.histIdx = -1; }
     const cur = tab.hist[tab.histIdx];
     if (cur && cur.url === url) return; // reload of current entry
-    const back = tab.histIdx > 0 && tab.hist[tab.histIdx - 1].url === url;
-    const fwd = tab.histIdx < tab.hist.length - 1 && tab.hist[tab.histIdx + 1].url === url;
-    if (back) { tab.histIdx--; return; }
-    if (fwd) { tab.histIdx++; return; }
+    // revisit of ANY existing entry (1-hop and multi-hop alike) moves the pointer
+    let at = -1, best = Infinity;
+    tab.hist.forEach((h, i) => {
+        if (h.url === url) { const d = Math.abs(i - tab.histIdx); if (d < best) { best = d; at = i; } }
+    });
+    if (at !== -1) { tab.histIdx = at; return; }
     // new destination — drop any forward tail like a real browser
     tab.hist = tab.hist.slice(0, tab.histIdx + 1);
     tab.hist.push({ url, title: tab.title });

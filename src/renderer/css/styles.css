@@ -96,7 +96,8 @@ kbd {
 }
 .icon-btn:hover { background: var(--panel-2); color: var(--text); }
 .icon-btn:active { transform: scale(.92); }
-.icon-btn:disabled { opacity: .35; pointer-events: none; }
+.icon-btn:disabled, .icon-btn.disabled { opacity: .35; }
+.icon-btn:disabled { pointer-events: none; }
 .icon-btn.active {
     color: var(--accent);
     background: color-mix(in srgb, var(--accent) 14%, transparent);

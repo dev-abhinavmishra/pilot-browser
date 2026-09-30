@@ -38,7 +38,9 @@ export function initSidebar() {
         showContextMenu(e.clientX, e.clientY, items);
     });
     // double-clicking empty tab-list space opens a new tab, like the Chrome strip
-    listEl.addEventListener('dblclick', (e) => { if (e.target === listEl) createTab({ activate: true }); });
+    document.querySelector('.sidebar-scroll').addEventListener('dblclick', (e) => {
+        if (!e.target.closest('.tab-item') && !e.target.closest('#pinned-grid')) createTab({ activate: true });
+    });
     document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebarCollapsed);
 }
 
@@ -233,8 +235,10 @@ function tabMenu(e, tab) {
         { label: tab.pinned ? 'Unpin tab' : 'Pin tab', icon: 'fa-thumbtack', click: () => tab.pinned ? unpinTab(tab.id) : pinTab(tab.id) },
         { label: 'Duplicate tab', icon: 'fa-clone', click: () => duplicateTab(tab.id) },
         { label: tab.muted ? 'Unmute tab' : 'Mute tab', icon: tab.muted ? 'fa-volume-high' : 'fa-volume-xmark', click: () => toggleMute(tab.id) },
-        { label: 'Picture in picture', icon: 'fa-window-restore', disabled: !tab.playing, click: () => {
-            tab.webview && wvCall(tab.webview, 'executeJavaScript', "(()=>{const v=document.querySelector('video'); if(v) document.pictureInPictureElement ? document.exitPictureInPicture() : v.requestPictureInPicture()})()");
+        { label: 'Picture in picture', icon: 'fa-window-restore', disabled: !wvCall(tab.webview, 'isCurrentlyAudible') && !tab.playing, click: () => {
+            // userGesture: true — requestPictureInPicture rejects without it
+            tab.webview && wvCall(tab.webview, 'executeJavaScript',
+                "(()=>{const v=[...document.querySelectorAll('video')].find(v=>!v.paused)||document.querySelector('video'); if(v) document.pictureInPictureElement ? document.exitPictureInPicture() : v.requestPictureInPicture()})()", true);
         } },
         'sep',
         { label: 'Split right with…', icon: 'fa-table-columns', submenu: getTabs().filter(t => t.spaceId === tab.spaceId && t.id !== tab.id && t.url).map(t => ({

@@ -174,6 +174,7 @@ function initToolbar() {
     fwd.addEventListener('contextmenu', (e) => { e.preventDefault(); navHistoryMenu(e, 1); });
     // lock icon gives the same one-glance security answer Chrome does
     $('#omni-lock').addEventListener('click', (e) => {
+        e.stopPropagation(); // keep the document click-outside closer from re-hiding it
         const t = activeTab();
         if (!t?.url) return;
         const https = t.url.startsWith('https');
@@ -242,7 +243,10 @@ function initToolbar() {
             label: h.title || hostOf(h.url),
             icon: i === index ? 'fa-circle-dot' : 'fa-clock-rotate-left',
             disabled: i === index,
-            click: () => wvCall(t.webview, 'goToOffset', i - index),
+            click: () => {
+                const off = i - index;
+                if (off) wvCall(t.webview, 'goToOffset', off);
+            },
         })).slice(-10);
         showContextMenu(e.clientX, e.clientY, items);
     }
@@ -250,8 +254,10 @@ function initToolbar() {
 
 export function updateNavButtons() {
     const t = activeTab();
-    $('#nav-back').disabled = !wvCall(t?.webview, 'canGoBack');
-    $('#nav-forward').disabled = !wvCall(t?.webview, 'canGoForward');
+    // class instead of the disabled attr: disabled buttons swallow even
+    // contextmenu, which would kill the history menu at the stack ends
+    $('#nav-back').classList.toggle('disabled', !wvCall(t?.webview, 'canGoBack'));
+    $('#nav-forward').classList.toggle('disabled', !wvCall(t?.webview, 'canGoForward'));
     const rl = $('#nav-reload i');
     if (rl) rl.className = t?.loading ? 'fa-solid fa-xmark' : 'fa-solid fa-rotate-right';
     $('#omni-lock').className = 'fa-solid ' + (t?.url?.startsWith('https') ? 'fa-lock' : t?.url ? 'fa-globe' : 'fa-magnifying-glass');

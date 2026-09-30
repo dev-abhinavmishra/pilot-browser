@@ -189,6 +189,9 @@ function registerIpc() {
   ipcMain.handle('save-page', async (_e, wcId) => {
     const wc = require('electron').webContents.fromId(wcId);
     if (!wc) return null;
+    // triggered from a guest — raise the window or the dialog lands behind it
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
       title: 'Save page as',
       defaultPath: 'page.html',
@@ -203,6 +206,8 @@ function registerIpc() {
   });
   // printToPDF lives in the renderer; the save dialog lives here
   ipcMain.handle('save-pdf', async (_e, buf) => {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
       title: 'Save page as PDF',
       defaultPath: 'page.pdf',
