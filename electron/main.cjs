@@ -329,11 +329,14 @@ app.whenReady().then(() => {
       if (input.type !== 'keyDown' || !mainWindow || mainWindow.isDestroyed()) return;
       const mod = input.control || input.meta;
       const key = (input.key || '').toLowerCase();
-      const combo = mod && input.shift ? `ms:${key}` : mod ? `m:${key}` : (key === 'f11' || key === 'f12' || key === 'f6') ? `k:${key}` : null;
+      const combo = mod && input.shift ? `ms:${key}` : mod ? `m:${key}`
+        : input.alt && /^arrow(left|right)$/.test(key) ? `a:${key}`
+        : (key === 'f11' || key === 'f12' || key === 'f6') ? `k:${key}` : null;
       const SHELL = new Set([
         'ms:t', 'ms:r', 'ms:b', 'ms:j', 'ms:o', 'ms:tab',
         'm:k', 'm:t', 'm:w', 'm:l', 'm:f', 'm:d', 'm:r', 'm:h', 'm:p', 'm:q',
         'm:s', 'm:j', 'm:tab', 'm:=', 'm:-',
+        'a:arrowleft', 'a:arrowright',
         'k:f11', 'k:f12', 'k:f6',
       ]);
       const isDigit = /^m:[0-9]$/.test(combo || ''); // Ctrl+1-9 tab jumping + zoom reset

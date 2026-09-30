@@ -376,9 +376,15 @@ export function webviewContextMenu({ tab, params }) {
 let findOpen = false;
 function initFindBar() {
     const input = $('#find-input');
+    let findTimer;
     input.addEventListener('input', () => {
-        const v = input.value;
-        if (v) findInPage(v); else stopFind();
+        // debounce like Chrome: per-keystroke findInPage leaves stale
+        // fragment highlights painted across the guest
+        clearTimeout(findTimer);
+        findTimer = setTimeout(() => {
+            const v = input.value;
+            if (v) findInPage(v); else stopFind();
+        }, 130);
     });
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') findNext(input.value, !e.shiftKey);

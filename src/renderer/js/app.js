@@ -84,10 +84,12 @@ function initGuestShortcuts() {
     // real keydown so the normal shortcut chain handles them uniformly
     window.pilot?.onGuestShortcut?.((combo) => {
         const [kind, key] = combo.split(':');
+        const named = { tab: 'Tab', arrowleft: 'ArrowLeft', arrowright: 'ArrowRight' };
         document.dispatchEvent(new KeyboardEvent('keydown', {
-            key: key === 'tab' ? 'Tab' : key, bubbles: true,
-            ctrlKey: kind !== 'k' && window.__pilotPlatform !== 'darwin',
-            metaKey: kind !== 'k' && window.__pilotPlatform === 'darwin',
+            key: named[key] || key, bubbles: true,
+            ctrlKey: kind === 'm' || kind === 'ms' ? window.__pilotPlatform !== 'darwin' : false,
+            metaKey: (kind === 'm' || kind === 'ms') && window.__pilotPlatform === 'darwin',
+            altKey: kind === 'a',
             shiftKey: kind === 'ms',
         }));
     });
