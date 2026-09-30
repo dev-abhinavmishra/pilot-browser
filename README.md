@@ -1,243 +1,126 @@
 # Pilot Browser
 
-A minimalist, AI-powered browser with two main modes: Search Mode (AI-enhanced web search) and Agent Mode (multi-agent automation).
+A minimalist, Arc-inspired desktop browser built on Electron — vertical tabs,
+spaces, a command palette, split view, and an optional local AI assistant.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/yourusername/pilot-browser/pulls)
 
-## ✨ Features
+## Features
 
-- **🔍 Search Mode**: AI-enhanced web search with multi-source aggregation and summarization
-- **🤖 Agent Mode**: Multi-agent system (Orion Framework) for task automation
-- **🎨 Minimalist UI**: Single input field inspired by Raycast/Spotlight
-- **🌓 Dark/Light Theme**: Automatic theme switching based on system preferences
-- **🎙️ Voice Input**: Built-in voice recognition for hands-free operation
-- **🔒 Secure**: Encrypted credential storage and secure data handling
-- **🌐 Cross-platform**: Works on Windows, macOS, and Linux
+- **Real browsing** — each tab is a Chromium `<webview>` on a persistent
+  session, so cookies and logins survive restarts.
+- **Vertical tab sidebar** — pinned-tab grid, per-tab audio indicator, mute,
+  duplicate, drag-to-reorder, context menus.
+- **Spaces** — separate tab sets with their own accent color (Personal, Work,
+  Explore — add your own). Tabs, pins, and the active space restore on launch.
+- **Command palette** (`Ctrl/Cmd+K`) — fuzzy search across open tabs, history,
+  bookmarks, and every browser action.
+- **Omnibox** — URLs or search queries (Google, Bing, DuckDuckGo, Brave,
+  Perplexity) with live suggestions from tabs, bookmarks, and history.
+- **Split view** — put any two tabs side-by-side (`Split right with…` in the
+  tab context menu or the toolbar button).
+- **Start page** — clock, quick search, and a customizable tile grid on every
+  new tab.
+- **Find in page** (`Ctrl/Cmd+F`), zoom, back/forward, reload/stop, downloads
+  with progress, and a library overlay for history, bookmarks, and downloads.
+- **Pilot AI panel** — a right-hand assistant that can summarize the current
+  page or answer questions using it as context. Powered by the bundled FastAPI
+  backend: an OpenAI-compatible local LLM (e.g. LM Studio) when one is
+  configured, with a DuckDuckGo instant-answer fallback so it always responds.
+- **Dark and light themes** plus a "Dark web pages" option; per-space accent
+  colors; frameless window with traffic-light controls.
 
-## 🚀 Getting Started
+## Keyboard shortcuts
 
-### Prerequisites
+| Keys | Action |
+| --- | --- |
+| `Ctrl/Cmd+K` | Command palette |
+| `Ctrl/Cmd+T` / `W` | New / close tab |
+| `Ctrl/Cmd+L` | Focus omnibox |
+| `Ctrl/Cmd+F` | Find in page |
+| `Ctrl/Cmd+D` | Bookmark page |
+| `Ctrl/Cmd+R` | Reload |
+| `Ctrl/Cmd+H` | History (library) |
+| `Ctrl/Cmd+Shift+B` | Toggle sidebar |
+| `Ctrl/Cmd+Shift+J` | Toggle AI assistant |
+| `Ctrl/Cmd+Tab` | Cycle tabs |
+| `Ctrl/Cmd+1–9` | Jump to tab / last tab |
+| `Ctrl/Cmd+= / - / 0` | Zoom in / out / reset |
+| `Alt+←/→` | Back / forward |
+| `F12` | Guest devtools |
 
-- Node.js (v16 or later)
-- Python (3.8 or later)
-- npm or yarn
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/pilot-browser.git
-   cd pilot-browser
-   ```
-
-2. **Install dependencies**
-   ```bash
-   # Install frontend dependencies
-   npm install
-   
-   # Create and activate a Python virtual environment (recommended)
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   
-   # Install Python dependencies
-   pip install -r requirements.txt
-   ```
-
-3. **Environment Setup**
-   Create a `.env` file in the root directory with the following variables:
-   ```
-   # API Keys
-   OPENAI_API_KEY=your_openai_api_key
-   
-   # Backend Configuration
-   PORT=8000
-   DEBUG=True
-   
-   # Frontend Configuration
-   VITE_API_URL=http://localhost:8000
-   ```
-
-### Running the Application
-
-1. **Start the backend server**
-   ```bash
-   cd backend
-   uvicorn main:app --reload
-   ```
-
-2. **Start the frontend** (in a new terminal)
-   ```bash
-   # Development mode
-   npm run dev
-   
-   # Or build for production
-   npm run build
-   npm start
-   ```
-
-## 🛠️ Tech Stack
-
-### Frontend
-- **Electron** - Cross-platform desktop application
-- **HTML/CSS/JavaScript** - Core web technologies
-- **Vite** - Fast build tool and development server
-- **Tailwind CSS** - Utility-first CSS framework
-
-### Backend
-- **Python** - Core programming language
-- **FastAPI** - Modern, fast web framework
-- **SQLAlchemy** - SQL toolkit and ORM
-- **Playwright** - Browser automation
-
-### AI/ML
-- **OpenAI GPT-4** - Language model integration
-- **Multi-agent System** - Task automation framework
-- **NLP** - Natural language processing
-
-## 📂 Project Structure
-
-```
-.
-├── backend/                  # Python backend
-│   ├── app/
-│   │   ├── api/              # API endpoints
-│   │   ├── core/             # Core functionality
-│   │   ├── models/           # Data models
-│   │   ├── services/         # Business logic
-│   │   └── utils/            # Utility functions
-│   ├── tests/                # Unit and integration tests
-│   └── main.py               # FastAPI application entry point
-│
-├── src/                      # Frontend source files
-│   ├── renderer/
-│   │   ├── css/              # Stylesheets
-│   │   ├── js/               # JavaScript modules
-│   │   └── index.html        # Main HTML file
-├── main.js                   # Electron main process
-├── preload.js                # Preload script for security
-│
-├── .github/                  # GitHub configuration
-│   └── workflows/           # CI/CD workflows
-│
-├── scripts/                  # Build and utility scripts
-├── tests/                   # End-to-end tests
-├── .gitignore               # Git ignore file
-├── CONTRIBUTING.md          # Contribution guidelines
-├── LICENSE                  # MIT License
-└── README.md                # This file
-│   │   ├── assets/           # Images, fonts, etc.
-│   │   └── index.html        # Main HTML file
-│   └── main.js               # Electron main process
-│
-├── .gitignore
-├── package.json              # Node.js dependencies and scripts
-├── requirements.txt          # Python dependencies
-└── README.md                 # This file
-```
-
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
-- Node.js 16+ and npm 8+
-- Python 3.8+
-- Playwright (for browser automation)
+- Node.js 18+ and npm
+- Python 3.10+ (optional, for the AI backend)
 
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/pilot-browser.git
-   cd pilot-browser
-   ```
-
-2. Install Python dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Install Node.js dependencies:
-   ```bash
-   npm install
-   ```
-
-4. Install Playwright browsers:
-   ```bash
-   npx playwright install
-   ```
-
-### Running the Application
-
-1. Start the backend server:
-   ```bash
-   cd backend
-   uvicorn main:app --reload
-   ```
-
-2. In a new terminal, start the Electron app:
-   ```bash
-   npm start
-   ```
-
-## Development
-
-### Backend API
-
-The backend provides the following API endpoints:
-
-- `GET /api/search` - Perform a search
-- `POST /api/ai/chat` - Get AI response
-- `GET /api/tasks` - List background tasks
-- `POST /api/tasks` - Create a new task
-- `GET /api/tasks/{task_id}` - Get task status
-- `GET /api/credentials` - List saved credentials
-- `POST /api/credentials` - Save credentials
-
-### Frontend Development
-
-The frontend is built with vanilla JavaScript following a modular architecture:
-
-- `app.js` - Core application initialization
-- `search.js` - Search functionality
-- `sidebar.js` - Sidebar navigation
-- `modals.js` - Modal dialogs
-- `quick-actions.js` - Quick action buttons
-- `theme.js` - Theme management
-- `ipc.js` - Inter-process communication
-
-### Building for Production
-
-To create a production build:
+### Install and run
 
 ```bash
-# Build the frontend
-npm run build
-
-# Package the application
-npm run package
+npm install
+npm run dev        # builds the renderer and launches Electron
 ```
 
-## Security
+The browser works fully without the backend. To enable Pilot AI:
 
-- Credentials are encrypted before being stored locally
-- OAuth2 is used for authentication
-- All external requests are validated and sanitized
-- Regular security audits are performed
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+npm run backend                  # uvicorn on http://localhost:8000
+```
 
-## Contributing
+Point the assistant at a local LLM via env vars before starting the backend:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+```bash
+export OPENAI_API_BASE=http://localhost:1234/v1   # LM Studio default
+export OPENAI_API_KEY=lm-studio
+export LLM_MODEL=gemma-3-4b
+```
+
+The backend URL is also configurable in Settings → Pilot AI Backend.
+
+### Production build
+
+```bash
+npm run build      # vite build → dist/renderer
+npm start          # electron . (loads dist/renderer)
+npm run package    # electron-builder → release/ (AppImage, deb, dmg, nsis)
+```
+
+## Project structure
+
+```
+├── electron/
+│   ├── main.cjs        # BrowserWindow, persistent session, downloads, IPC
+│   └── preload.cjs     # contextBridge surface (window.pilot)
+├── src/renderer/
+│   ├── index.html      # Shell markup: sidebar, toolbar, overlays
+│   ├── css/styles.css  # Design system (dark/light, per-space accent)
+│   └── js/
+│       ├── app.js      # Bootstrap, theme, shortcuts, start page
+│       ├── store.js    # localStorage persistence + settings/spaces model
+│       ├── tabs.js     # Tab engine: webview lifecycle, nav, split, spaces
+│       ├── sidebar.js  # Spaces, pinned grid, tab list, context menus
+│       ├── omnibox.js  # Omnibox + suggestions
+│       ├── palette.js  # Command palette
+│       ├── ui.js       # Toolbar, find bar, library panels, context menus
+│       ├── settings.js # Settings panel
+│       └── assistant.js# Pilot AI side panel
+├── backend/            # FastAPI + SQLAlchemy; /api/v1/assistant/ask
+├── scripts/dev.js      # Dev launcher (vite build + electron)
+└── assets/icon.png
+```
+
+## Security notes
+
+- Webview guests run sandboxed with context isolation and no Node integration.
+- The shell exposes a minimal `window.pilot` IPC surface via a preload bridge.
+- Downloads stream through the main process into your Downloads folder.
+- The backend stores its SQLite database under `backend/`; no telemetry.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Inspired by modern browser UIs and AI-powered assistants
-- Built with amazing open source technologies
+MIT — see [LICENSE](LICENSE).

@@ -1,94 +1,40 @@
 {
   "name": "pilot-browser",
-  "version": "0.1.0",
-  "description": "A minimalist AI-powered browser with intelligent task automation",
-  "main": "dist/main.js",
+  "version": "1.0.0",
+  "description": "Pilot — a minimalist, AI-powered desktop browser (Arc-style sidebar, spaces, split view, command palette)",
+  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
+    "dev": "node scripts/dev.js",
     "start": "electron .",
-    "dev": "vite",
-    "build:renderer": "vite build",
-    "build:main": "node scripts/build-main.js",
-    "build": "npm run build:renderer && npm run build:main",
-    "package": "node scripts/build.js",
-    "package:dev": "npm run build && electron-builder --dir",
-    "dev:build": "node scripts/dev-build.js",
-    "dev:start": "cd dev-dist && npm start",
-    "dev:all": "npm run dev:build && npm run dev:start",
-    "release": "npm run build && npm run package",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "electron-builder install-app-deps"
+    "build": "vite build",
+    "package": "npm run build && electron-builder",
+    "package:dir": "npm run build && electron-builder --dir",
+    "package:win": "npm run build && electron-builder --win",
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:linux": "npm run build && electron-builder --linux",
+    "backend": "cd backend && uvicorn main:app --reload"
   },
   "keywords": [
     "browser",
-    "automation",
+    "electron",
     "ai",
-    "electron"
+    "automation",
+    "arc",
+    "webview"
   ],
   "author": "Pilot Browser Team",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@vitejs/plugin-vue": "^5.2.4",
     "electron": "^28.0.0",
-    "electron-builder": "^24.6.4",
+    "electron-builder": "^24.13.3",
     "fs-extra": "^11.3.0",
     "js-yaml": "^4.1.0",
     "terser": "^5.43.1",
-    "vite": "^6.3.5",
-    "vite-plugin-electron": "^0.14.0",
-    "vite-plugin-electron-renderer": "^0.14.0"
+    "vite": "^6.3.5"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-free": "^6.4.0",
-    "electron-store": "^8.1.0",
-    "socket.io-client": "^4.7.2",
-    "axios": "^1.6.0"
-  },
-  "build": {
-    "extends": "electron-builder.yml",
-    "appId": "com.pilot.browser",
-    "productName": "Pilot Browser",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "node_modules/**/*",
-      "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "backend",
-        "to": "app/backend",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "win": {
-      "target": [
-        "nsis",
-        "portable"
-      ],
-      "icon": "build/icon.ico"
-    },
-    "mac": {
-      "target": [
-        "dmg",
-        "zip"
-      ],
-      "icon": "build/icon.icns",
-      "category": "public.app-category.utilities"
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb",
-        "rpm"
-      ],
-      "icon": "build/icon.png",
-      "category": "Network"
-    }
+    "@fortawesome/fontawesome-free": "^6.4.0"
   }
 }

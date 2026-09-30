@@ -176,3 +176,7 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Runtime artifacts
+backend/pilot_browser.db
+backend/pilot_backend.log

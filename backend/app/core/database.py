@@ -94,8 +94,3 @@ async def init_db():
 
 # Import models to ensure they are registered with SQLAlchemy
 from app.models import user, credential, task  # noqa
-
-# Create database tables on import if in development
-if os.getenv("ENV") == "development":
-    import asyncio
-    asyncio.create_task(init_db())
