@@ -352,10 +352,17 @@ async def _llm_plan(req: AgentStepRequest) -> Optional[AgentStepResponse]:
             max_retries=1,
         )
         snap = req.snapshot or AgentSnapshot()
+        # budget the payload: small local models have ~4k-token contexts — a full
+        # snapshot + history overflows and silently downgrades to rules
         els = [
-            {"id": e.id, "tag": e.tag, "text": e.text[:80], "href": (e.href or "")[:200],
-             "type": e.type, "placeholder": e.placeholder}
-            for e in snap.elements[:_MAX_ELEMENTS]
+            {"id": e.id, "tag": e.tag, "text": e.text[:60], "href": (e.href or "")[:120],
+             "type": e.type, "placeholder": (e.placeholder or "")[:60]}
+            for e in snap.elements[:30]
+        ]
+        hist = [
+            {"action": h.get("action"), "arg": h.get("arg"), "ok": h.get("ok"),
+             "result": str(h.get("result") or "")[:200]}
+            for h in req.history[-8:]
         ]
         sys = (
             "You are Pilot, a browser agent. Given the user's GOAL, the current PAGE snapshot "
@@ -375,8 +382,8 @@ async def _llm_plan(req: AgentStepRequest) -> Optional[AgentStepResponse]:
         )
         user = json.dumps({
             "goal": req.goal[:_MAX_QUERY],
-            "page": {"url": snap.url, "title": snap.title, "text": (snap.text or "")[:2500], "elements": els},
-            "history": req.history[-_MAX_HISTORY:],
+            "page": {"url": snap.url, "title": snap.title, "text": (snap.text or "")[:1400], "elements": els},
+            "history": hist,
         })
         resp = await client.chat.completions.create(
             model=settings.LLM_MODEL,

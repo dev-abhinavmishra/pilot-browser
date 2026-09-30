@@ -149,8 +149,7 @@ async function send() {
         renderAnswer(ans);
     } catch (err) {
         t.remove();
-        backendUp = false;
-        renderAnswer(fallbackAnswer(q));
+        renderAskError(err, q);
     }
 }
 
@@ -164,10 +163,9 @@ export async function askFromConsole(q) {
         const ans = await ask(q, page);
         t.remove();
         renderAnswer(ans);
-    } catch {
+    } catch (err) {
         t.remove();
-        backendUp = false;
-        renderAnswer(fallbackAnswer(q));
+        renderAskError(err, q);
     }
 }
 
@@ -195,9 +193,19 @@ async function ask(query, page) {
         body: JSON.stringify({ query, page }),
         signal: AbortSignal.timeout(20000),
     });
+    if (res.status === 429) { const e = new Error('rate limited'); e.code = 'rate_limited'; throw e; }
     if (!res.ok) throw new Error('backend ' + res.status);
     backendUp = true;
     return res.json();
+}
+
+function renderAskError(err, q) {
+    if (err && err.code === 'rate_limited') {
+        renderAnswer({ answer: 'Pilot is rate-limiting requests — wait a few seconds and try again.', sources: [] });
+        return;
+    }
+    backendUp = false;
+    renderAnswer(fallbackAnswer(q));
 }
 
 function renderAnswer(ans) {
