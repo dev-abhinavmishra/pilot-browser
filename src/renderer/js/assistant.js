@@ -3,9 +3,12 @@
 import { db } from './store.js';
 import { activeTab, navigateActive } from './tabs.js';
 import { toast } from './ui.js';
+import { runAgentTask } from './agent.js';
 
 let panel, body, input;
 let backendUp = null;
+let taskMode = false;
+let taskControl = null;   // {cancelled} while a task is running
 
 export function initAssistant() {
     panel = document.getElementById('assistant-panel');
@@ -16,6 +19,7 @@ export function initAssistant() {
     document.getElementById('assistant-close').addEventListener('click', close);
     document.getElementById('assistant-send').addEventListener('click', send);
     document.getElementById('assistant-summarize').addEventListener('click', summarizePage);
+    document.getElementById('assistant-task').addEventListener('click', toggleTaskMode);
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
 
     emptyState();
@@ -63,10 +67,60 @@ function typing() {
     return el;
 }
 
+function toggleTaskMode() {
+    taskMode = !taskMode;
+    document.getElementById('assistant-task').classList.toggle('active', taskMode);
+    input.placeholder = taskMode ? 'Describe a task for Pilot to do…' : 'Ask anything…';
+    input.focus();
+}
+
+function setRunning(running) {
+    const btn = document.getElementById('assistant-send');
+    btn.classList.toggle('stop', running);
+    btn.innerHTML = running ? '<i class="fa-solid fa-stop"></i>' : '<i class="fa-solid fa-paper-plane"></i>';
+    input.disabled = running;
+}
+
+function logStep(entry) {
+    const el = document.createElement('div');
+    el.className = 'agent-line' + (entry.ok === false ? ' bad' : '');
+    const arg = entry.arg ? Object.entries(entry.arg).map(([k, v]) => `${k}=${v}`).join(' ') : '';
+    el.innerHTML = `<span class="agent-step">${entry.step}</span>` +
+        `<span class="agent-act">${entry.action}${arg ? ' ' + arg : ''}</span>` +
+        `<span class="agent-res"></span>`;
+    el.querySelector('.agent-res').textContent = entry.thought ? `${entry.thought} — ${entry.result}` : String(entry.result ?? '');
+    body.appendChild(el);
+    body.scrollTop = body.scrollHeight;
+}
+
+async function runTask(q) {
+    bubble(q, 'user');
+    taskControl = { cancelled: false };
+    setRunning(true);
+    const head = document.createElement('div');
+    head.className = 'agent-line head';
+    head.innerHTML = '<i class="fa-solid fa-rocket"></i> <span>Task started — Pilot is driving this tab.</span>';
+    body.appendChild(head);
+    body.scrollTop = body.scrollHeight;
+    try {
+        const res = await runAgentTask(q, logStep, taskControl);
+        backendUp = true;
+        bubble(res.report, 'ai');
+    } catch {
+        backendUp = false;
+        bubble('The Pilot backend isn\'t running — start it with `cd backend && uvicorn main:app` to run tasks.', 'ai');
+    } finally {
+        taskControl = null;
+        setRunning(false);
+    }
+}
+
 async function send() {
+    if (taskControl) { taskControl.cancelled = true; return; }   // running: button is a stop button
     const q = input.value.trim();
     if (!q) return;
     input.value = '';
+    if (taskMode) { runTask(q); return; }
     bubble(q, 'user');
     const t = typing();
     try {
@@ -102,9 +156,14 @@ async function currentPageContext() {
     const tab = activeTab();
     if (!tab?.webview || !tab.url) return null;
     try {
-        const text = await tab.webview.executeJavaScript(
-            `(document.body ? document.body.innerText.slice(0, 6000) : '')`
-        );
+        // race a timeout — a hung guest would otherwise wedge the ask forever
+        const text = await Promise.race([
+            tab.webview.executeJavaScript(
+                `(document.body ? document.body.innerText.slice(0, 6000) : '')`, true
+            ),
+            new Promise((res) => setTimeout(() => res(null), 6000)),
+        ]);
+        if (text === null) return null;
         return { url: tab.url, title: tab.title, excerpt: text };
     } catch { return null; }
 }
