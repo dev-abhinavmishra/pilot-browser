@@ -81,7 +81,16 @@ function setRunning(running) {
     input.disabled = running;
 }
 
+function thinkingStep() {
+    const t = document.createElement('div');
+    t.className = 'agent-line thinking';
+    t.innerHTML = '<i class="fa-solid fa-ellipsis"></i><span class="agent-res">Pilot is planning the next step…</span>';
+    body.appendChild(t);
+    body.scrollTop = body.scrollHeight;
+}
+
 function logStep(entry) {
+    body.querySelectorAll('.agent-line.thinking').forEach(n => n.remove());
     const el = document.createElement('div');
     el.className = 'agent-line' + (entry.ok === false ? ' bad' : '');
     const arg = entry.arg ? Object.entries(entry.arg).map(([k, v]) => `${k}=${v}`).join(' ') : '';
@@ -97,6 +106,7 @@ function logStep(entry) {
     res.textContent = entry.thought ? `${entry.thought} — ${entry.result}` : String(entry.result ?? '');
     el.append(step, act, res);
     body.appendChild(el);
+    if (entry.action !== 'done' && entry.action !== 'fail') thinkingStep();
     body.scrollTop = body.scrollHeight;
 }
 
@@ -108,6 +118,7 @@ async function runTask(q) {
     head.className = 'agent-line head';
     head.innerHTML = '<i class="fa-solid fa-rocket"></i> <span>Task started — Pilot is driving this tab.</span>';
     body.appendChild(head);
+    thinkingStep();
     body.scrollTop = body.scrollHeight;
     try {
         const res = await runAgentTask(q, logStep, taskControl);
@@ -117,6 +128,7 @@ async function runTask(q) {
         backendUp = false;
         bubble('The Pilot backend isn\'t running — start it with `cd backend && uvicorn main:app` to run tasks.', 'ai');
     } finally {
+        body.querySelectorAll('.agent-line.thinking').forEach(n => n.remove());
         taskControl = null;
         setRunning(false);
     }

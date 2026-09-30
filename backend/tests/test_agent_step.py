@@ -198,6 +198,45 @@ def test_validate_plan_accepts_id_within_snapshot():
     assert out is not None and out.arg["id"] == 1
 
 
+def test_empty_snapshot_navigate_short_circuits_rules(client, monkeypatch):
+    # real-LLM finding: on a start tab the model refused; rules must plan nav/search first
+    async def refuse(req):
+        return assistant.AgentStepResponse(thought="no context", action="fail", final_answer="cannot navigate")
+    monkeypatch.setattr(assistant, "_llm_plan", refuse)
+    body = post(client, goal="go to example.com", snapshot={"url": None, "elements": []}).json()
+    assert body["action"] == "navigate"
+
+
+def test_loop_breaker_pairwise(client):
+    hist = [
+        {"action": "click", "arg": {"id": 0}, "result": "clicked", "ok": True},
+        {"action": "click", "arg": {"id": 0}, "result": "clicked", "ok": True},
+    ]
+    body = post(client, goal="do the thing", snapshot={"url": "https://x.example"}, history=hist).json()
+    assert body["action"] == "done"
+
+
+def test_loop_breaker_two_cycle(client):
+    hist = [
+        {"action": "navigate", "arg": {"url": "https://x.example"}, "ok": True},
+        {"action": "click", "arg": {"id": 0}, "ok": True},
+        {"action": "navigate", "arg": {"url": "https://x.example"}, "ok": True},
+        {"action": "click", "arg": {"id": 0}, "ok": True},
+    ]
+    body = post(client, goal="do the thing", snapshot={"url": "https://x.example"}, history=hist).json()
+    assert body["action"] == "done"
+
+
+def test_loop_breaker_ignores_failed_actions(client):
+    # identical FAILED steps must not count as completion
+    hist = [
+        {"action": "navigate", "arg": {"url": "https://x.example"}, "ok": False},
+        {"action": "navigate", "arg": {"url": "https://x.example"}, "ok": False},
+    ]
+    body = post(client, goal="frobulate", snapshot={"url": "https://other.example"}, history=hist).json()
+    assert body["action"] != "done"
+
+
 def test_step_limit_returns_done(client):
     hist = [{"action": "scroll", "result": "scrolled down"}] * 12
     body = post(client, goal="keep scrolling", snapshot={"url": "https://x.example"}, history=hist).json()

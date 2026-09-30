@@ -368,7 +368,10 @@ async def _llm_plan(req: AgentStepRequest) -> Optional[AgentStepResponse]:
             "done {final_answer}, fail {final_answer}.\n"
             "Rules: only http(s) urls; reference elements by their numeric id; "
             "use extract to read page text before answering questions about it; "
-            "use done as soon as the goal is satisfied; use fail if the goal is impossible."
+            "use done as soon as the goal is satisfied — if the HISTORY shows you "
+            "already navigated to the target, ran the search, clicked the target, or "
+            "extracted the page, the goal is complete: respond done, do NOT repeat "
+            "an action that already succeeded; use fail if the goal is impossible."
         )
         user = json.dumps({
             "goal": req.goal[:_MAX_QUERY],
@@ -408,6 +411,31 @@ async def agent_step(req: AgentStepRequest, request: Request):
     if len(req.history) >= _MAX_HISTORY:
         return AgentStepResponse(thought="Step limit reached.", action="done",
                                  final_answer="Stopped — reached the step limit without finishing the task.")
+
+    # generic loop breaker: the same action+args succeeding twice in a row, or a
+    # repeating 2-cycle (nav→click→nav→click), means the task is most likely
+    # already complete — covers planners that never emit done
+    def _sig(h):
+        return (h.get("action"), json.dumps(h.get("arg") or {}, sort_keys=True))
+
+    ok_tail = all(h.get("ok", True) is not False for h in req.history[-4:])
+    if len(req.history) >= 2 and ok_tail and _sig(req.history[-1]) == _sig(req.history[-2]):
+        return AgentStepResponse(
+            thought="Same action repeated — the goal is most likely already met.",
+            action="done",
+            final_answer="Finished — the task repeated an identical action, so it is most likely already complete.")
+    if len(req.history) >= 4 and ok_tail and _sig(req.history[-4]) == _sig(req.history[-2]) \
+            and _sig(req.history[-3]) == _sig(req.history[-1]):
+        return AgentStepResponse(
+            thought="Repeating action cycle — the goal is most likely already met.",
+            action="done",
+            final_answer="Finished — the task was repeating the same two actions, so it is most likely already complete.")
+
+    # empty snapshot (e.g. start tab): a navigate/search goal needs no page context
+    if not req.snapshot or not req.snapshot.url:
+        pre = _rule_plan(req)
+        if pre.action in ("navigate", "search"):
+            return pre
 
     try:
         plan = await _llm_plan(req)

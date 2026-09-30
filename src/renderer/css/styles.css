@@ -702,6 +702,8 @@ webview.in-split-right { border-left: 2px solid var(--line-2); order: 2; }
 .agent-line.head { border-left-color: var(--accent); color: var(--text); }
 .agent-line.head i { color: var(--accent); margin-right: 4px; }
 .agent-line.bad { border-left-color: var(--danger, #f87171); }
+.agent-line.thinking { border-left-color: var(--accent-2); opacity: .7; }
+.agent-line.thinking i { color: var(--accent-2); animation: blink 1.2s infinite; margin-right: 4px; }
 .agent-line .agent-step {
     min-width: 16px; height: 16px; border-radius: 4px; display: inline-flex;
     align-items: center; justify-content: center; font-size: 9px;

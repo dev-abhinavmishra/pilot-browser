@@ -185,7 +185,7 @@ async function nextStep(goal, snap, history) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ goal, snapshot: snap, history }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(90000),   // local models on CPU can take ~60s/step
     });
     if (!res.ok) throw new Error('backend ' + res.status);
     return res.json();
@@ -213,7 +213,12 @@ export async function runAgentTask(goal, onStep = () => {}, control = { cancelle
 
         let plan;
         try { plan = await nextStep(goal, snap, history); }
-        catch (e) { return { status: 'failed', report: `Backend error: ${e.message}` }; }
+        catch (e) {
+            const msg = (e.name === 'AbortError' || /timed? ?out|abort/i.test(e.message || ''))
+                ? 'the planner took too long to respond (model too slow or backend down)'
+                : `backend error: ${e.message}`;
+            return { status: 'failed', report: `Stopped — ${msg}.` };
+        }
 
         const action = String(plan.action || 'fail');
         if (action === 'done' || action === 'fail') {
