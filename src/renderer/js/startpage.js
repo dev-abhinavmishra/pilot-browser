@@ -80,6 +80,8 @@ function initConsole() {
         }
     }
     renderEngines();
+    // settings-panel engine changes repaint the keycaps + readout too
+    window.addEventListener('pilot:settings-changed', () => { renderEngines(); renderReadout(); });
 
     // open-in 3-way switch
     document.getElementById('con-openin').querySelectorAll('.con-sw').forEach(b => {

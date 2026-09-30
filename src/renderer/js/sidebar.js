@@ -6,7 +6,7 @@ import {
     moveTab, moveTabToSpace, switchSpace, addSpace, deleteSpace,
     splitActiveWith, createTab, wvCall, recentClosed, reopenClosedTab,
 } from './tabs.js';
-import { showContextMenu, toast } from './ui.js';
+import { showContextMenu, toast, textPrompt, confirmDialog } from './ui.js';
 
 let listEl, pinnedEl, spacesEl;
 
@@ -70,7 +70,11 @@ function renderSpaces() {
             showContextMenu(e.clientX, e.clientY, [
                 { label: `Switch to ${s.name}`, icon: 'fa-arrow-right', click: () => switchSpace(s.id) },
                 { label: 'Rename…', icon: 'fa-pen', click: () => renameSpace(s) },
-                { label: 'Delete space', icon: 'fa-trash', danger: true, click: () => deleteSpace(s.id), disabled: db.spaces.length <= 1 },
+                { label: 'Delete space', icon: 'fa-trash', danger: true, disabled: db.spaces.length <= 1,
+                    click: async () => {
+                        const n = tabsInSpace(s.id).length + pinnedInSpace(s.id).length;
+                        if (await confirmDialog(`Delete space "${s.name}"${n ? ` and its ${n} tab${n === 1 ? '' : 's'}` : ''}?`, 'Delete', true)) deleteSpace(s.id);
+                    } },
                 'sep',
                 { label: 'New space…', icon: 'fa-plus', click: promptNewSpace },
             ]);
@@ -88,15 +92,16 @@ function renderSpaces() {
 const SPACE_ICONS = ['fa-user', 'fa-briefcase', 'fa-compass', 'fa-rocket', 'fa-flask', 'fa-gamepad', 'fa-book', 'fa-code'];
 const SPACE_ACCENTS = ['#7c5cff', '#2dd4bf', '#f59e0b', '#f472b6', '#38bdf8', '#a3e635'];
 
-function promptNewSpace() {
-    const name = prompt('Space name:', 'New Space');
+async function promptNewSpace() {
+    // Electron renderers have no window.prompt — themed mini dialog instead
+    const name = await textPrompt('New space name', 'New Space');
     if (!name) return;
     const i = db.spaces.length % SPACE_ICONS.length;
     const s = addSpace(name, SPACE_ICONS[i], SPACE_ACCENTS[db.spaces.length % SPACE_ACCENTS.length]);
     switchSpace(s.id);
 }
-function renameSpace(s) {
-    const name = prompt('Space name:', s.name);
+async function renameSpace(s) {
+    const name = await textPrompt('Space name', s.name);
     if (!name) return;
     s.name = name; save(); renderSpaces();
 }

@@ -939,3 +939,24 @@ input:focus-visible, textarea:focus-visible, [contenteditable]:focus-visible { o
         scroll-behavior: auto !important;
     }
 }
+
+/* mini dialog — themed replacement for window.prompt/confirm (unsupported) */
+.mini-modal { position: fixed; inset: 0; z-index: 80; background: rgba(4,6,12,.55);
+    backdrop-filter: blur(3px); display: flex; align-items: flex-start; justify-content: center;
+    padding-top: 18vh; animation: fadeIn .15s var(--ease); }
+.mini-card { width: 360px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px; box-shadow: 0 18px 50px rgba(0,0,0,.5);
+    animation: popIn .18s var(--spring); }
+.mini-title { font: 600 13px var(--font-d); letter-spacing: .04em; margin-bottom: 12px; }
+.mini-card input { width: 100%; background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 8px; color: var(--text); padding: 9px 11px; font: 13px inherit; outline: none; }
+.mini-card input:focus { border-color: var(--accent-2);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-2) 18%, transparent); }
+.mini-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.mini-row button { padding: 7px 16px; border-radius: 7px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--text); font: 600 12px var(--font-d);
+    cursor: pointer; transition: filter .12s, transform .1s; }
+.mini-row button:hover { filter: brightness(1.25); }
+.mini-row button:active { transform: scale(.95); }
+.mini-ok { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mini-ok.danger { background: var(--red, #ef4444); border-color: var(--red, #ef4444); }

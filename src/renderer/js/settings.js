@@ -1,7 +1,7 @@
 // settings.js — settings tab rendered inside the Library overlay
 import { db, save } from './store.js';
 import { applyTheme } from './app.js';
-import { toast } from './ui.js';
+import { toast, confirmDialog } from './ui.js';
 
 const ENGINES = [
     ['google', 'Google'], ['bing', 'Bing'], ['duckduckgo', 'DuckDuckGo'],
@@ -80,7 +80,11 @@ export function renderSettingsPanel(el) {
 
     // --- search
     const srch = sec('Search');
-    row(srch, 'Default search engine', 'Used for omnibox queries that aren\'t URLs', select(s.searchEngine, ENGINES, (v) => { s.searchEngine = v; save(); }));
+    row(srch, 'Default search engine', 'Used for omnibox queries that aren\'t URLs', select(s.searchEngine, ENGINES, (v) => {
+        s.searchEngine = v; save();
+        // let the start console re-render its engine keycaps + readout
+        window.dispatchEvent(new Event('pilot:settings-changed'));
+    }));
     row(srch, 'History retention', null, select(String(s.keepHistoryDays), [['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['365', '1 year']], (v) => {
         s.keepHistoryDays = parseInt(v, 10);
         db.history = db.history.filter(h => h.visitedAt > Date.now() - s.keepHistoryDays * 864e5);
@@ -106,8 +110,9 @@ export function renderSettingsPanel(el) {
         const b = document.createElement('button');
         b.className = 'btn btn-danger';
         b.textContent = 'Clear data';
-        b.addEventListener('click', () => {
-            if (confirm('Delete all history and bookmarks?')) {
+        b.addEventListener('click', async () => {
+            // window.confirm is unsupported in Electron — themed dialog
+            if (await confirmDialog('Delete all history and bookmarks?', 'Clear data', true)) {
                 db.history = []; db.bookmarks = []; save();
                 toast('Browsing data cleared', 'fa-trash');
             }

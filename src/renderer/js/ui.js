@@ -43,6 +43,37 @@ export async function printActive() {
 }
 
 // ---------------------------------------------------------------------------
+// Mini dialog — window.prompt/confirm are unsupported inside Electron
+// renderers, so shell flows use this themed modal instead
+// ---------------------------------------------------------------------------
+export function miniDialog({ title, initial = null, okLabel = 'OK', danger = false }) {
+    return new Promise((resolve) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'mini-modal';
+        wrap.innerHTML = `<div class="mini-card"><div class="mini-title"></div>${initial !== null ? '<input type="text" spellcheck="false">' : ''}<div class="mini-row"><button class="mini-cancel">Cancel</button><button class="mini-ok"></button></div></div>`;
+        wrap.querySelector('.mini-title').textContent = title;
+        const okBtn = wrap.querySelector('.mini-ok');
+        okBtn.textContent = okLabel;
+        if (danger) okBtn.classList.add('danger');
+        const inp = wrap.querySelector('input');
+        if (inp) inp.value = initial;
+        const finish = (v) => { wrap.remove(); document.removeEventListener('keydown', onKey, true); resolve(v); };
+        const onKey = (e) => {
+            if (e.key === 'Escape') { e.stopPropagation(); finish(initial === null ? false : null); }
+            else if (e.key === 'Enter') { e.stopPropagation(); finish(inp ? (inp.value.trim() || null) : true); }
+        };
+        document.addEventListener('keydown', onKey, true);
+        okBtn.addEventListener('click', () => finish(inp ? (inp.value.trim() || null) : true));
+        wrap.querySelector('.mini-cancel').addEventListener('click', () => finish(initial === null ? false : null));
+        wrap.addEventListener('mousedown', (e) => { if (e.target === wrap) finish(initial === null ? false : null); });
+        document.body.appendChild(wrap);
+        if (inp) { inp.focus(); inp.select(); }
+    });
+}
+export const textPrompt = (title, initial = '') => miniDialog({ title, initial });
+export const confirmDialog = (title, okLabel = 'OK', danger = false) => miniDialog({ title, okLabel, danger });
+
+// ---------------------------------------------------------------------------
 // Toasts
 // ---------------------------------------------------------------------------
 export function toast(msg, icon = 'fa-check') {
