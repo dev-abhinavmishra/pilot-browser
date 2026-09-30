@@ -4,7 +4,7 @@ import {
     on, getTabs, activeTab, tabsInSpace, pinnedInSpace,
     activateTab, closeTab, pinTab, unpinTab, toggleMute, duplicateTab,
     moveTab, moveTabToSpace, switchSpace, addSpace, deleteSpace,
-    splitActiveWith, createTab, wvCall,
+    splitActiveWith, createTab, wvCall, recentClosed, reopenClosedTab,
 } from './tabs.js';
 import { showContextMenu, toast } from './ui.js';
 
@@ -24,6 +24,21 @@ export function initSidebar() {
     on('space-changed', () => { renderSpaces(); renderTabs(); });
 
     document.getElementById('new-tab-btn').addEventListener('click', () => createTab({ activate: true }));
+    // Arc-style: right-click NEW surfaces recently closed tabs
+    document.getElementById('new-tab-btn').addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const closed = recentClosed().slice(0, 10);
+        const items = closed.map(c => ({
+            label: c.title || hostOf(c.url), icon: 'fa-clock-rotate-left',
+            click: () => createTab({ url: c.url, spaceId: c.spaceId }),
+        }));
+        if (items.length) items.push('sep');
+        items.push({ label: 'Reopen closed tab', icon: 'fa-rotate-left', key: 'Ctrl+Shift+T',
+            disabled: !closed.length, click: () => reopenClosedTab() });
+        showContextMenu(e.clientX, e.clientY, items);
+    });
+    // double-clicking empty tab-list space opens a new tab, like the Chrome strip
+    listEl.addEventListener('dblclick', (e) => { if (e.target === listEl) createTab({ activate: true }); });
     document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebarCollapsed);
 }
 
@@ -120,6 +135,7 @@ function renderTabs() {
         b.append(faviconEl(t), badge);
         b.addEventListener('click', () => activateTab(t.id));
         b.addEventListener('contextmenu', (e) => { e.preventDefault(); tabMenu(e, t); });
+        b.addEventListener('auxclick', (e) => { if (e.button === 1) closeTab(t.id); });
         pinnedEl.appendChild(b);
     }
 
@@ -217,6 +233,9 @@ function tabMenu(e, tab) {
         { label: tab.pinned ? 'Unpin tab' : 'Pin tab', icon: 'fa-thumbtack', click: () => tab.pinned ? unpinTab(tab.id) : pinTab(tab.id) },
         { label: 'Duplicate tab', icon: 'fa-clone', click: () => duplicateTab(tab.id) },
         { label: tab.muted ? 'Unmute tab' : 'Mute tab', icon: tab.muted ? 'fa-volume-high' : 'fa-volume-xmark', click: () => toggleMute(tab.id) },
+        { label: 'Picture in picture', icon: 'fa-window-restore', disabled: !tab.playing, click: () => {
+            tab.webview && wvCall(tab.webview, 'executeJavaScript', "(()=>{const v=document.querySelector('video'); if(v) document.pictureInPictureElement ? document.exitPictureInPicture() : v.requestPictureInPicture()})()");
+        } },
         'sep',
         { label: 'Split right with…', icon: 'fa-table-columns', submenu: getTabs().filter(t => t.spaceId === tab.spaceId && t.id !== tab.id && t.url).map(t => ({
             label: t.title || hostOf(t.url), icon: 'fa-window-maximize',
@@ -229,6 +248,8 @@ function tabMenu(e, tab) {
         { label: 'Reload', icon: 'fa-rotate-right', click: () => { activateTab(tab.id); tab.webview && wvCall(tab.webview, 'reload'); } },
         { label: 'Close tab', icon: 'fa-xmark', click: () => closeTab(tab.id), key: 'Ctrl+W' },
         { label: 'Close other tabs', icon: 'fa-xmarks-lines', click: () => closeOthers(tab) },
+        { label: 'Close tabs below', icon: 'fa-angles-down', click: () => closeBelow(tab),
+            disabled: !tabsInSpace().slice(tabsInSpace().findIndex(t => t.id === tab.id) + 1).length },
     ];
     showContextMenu(e.clientX, e.clientY, items);
 }
@@ -237,6 +258,12 @@ function closeOthers(keep) {
     for (const t of tabsInSpace()) {
         if (t.id !== keep.id) closeTab(t.id);
     }
+}
+
+function closeBelow(from) {
+    const list = tabsInSpace();
+    const i = list.findIndex(t => t.id === from.id);
+    for (const t of list.slice(i + 1)) closeTab(t.id);
 }
 
 

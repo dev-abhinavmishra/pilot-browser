@@ -5,7 +5,7 @@ import {
     splitActiveWith, closeSplit, tabsInSpace, pinnedInSpace, getTabs, activateTab,
     findInPage, findNext, stopFind, devTools, zoomBy, zoomReset, wvCall,
     switchSpace, spaceAccent, getTab, duplicateTab,
-    reopenClosedTab, canReopenTab,
+    reopenClosedTab, canReopenTab, navHistoryOf, SEARCH_ENGINES,
 } from './tabs.js';
 import { renderSettingsPanel } from './settings.js';
 
@@ -20,6 +20,15 @@ const clip = {
     write: (t) => window.pilot?.clipboardWriteText ? window.pilot.clipboardWriteText(t) : navigator.clipboard?.writeText(t),
     read: () => window.pilot?.clipboardReadText ? window.pilot.clipboardReadText() : navigator.clipboard?.readText(),
 };
+
+// Ctrl+S — save the live page as HTML via the guest's own webContents
+export async function saveActivePage() {
+    const wv = activeTab()?.webview;
+    const wcId = wv ? wvCall(wv, 'getWebContentsId') : null;
+    if (!wcId || !window.pilot?.savePage) return;
+    const path = await window.pilot.savePage(wcId);
+    if (path) toast('Saved ' + path, 'fa-floppy-disk');
+}
 
 // Electron's wv.print() is silent (no dialog, straight to the default
 // printer) — printToPDF + a save dialog is the usable equivalent
@@ -70,6 +79,9 @@ export function initUi() {
     }, true);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            // Esc also stops a page load, like the browser it's modeled on
+            const t = activeTab();
+            if (t?.loading) wvCall(t.webview, 'stop');
             hideContextMenu();
             hideLibrary();
             hidePaletteExt();
@@ -156,6 +168,24 @@ function initToolbar() {
 
     back.addEventListener('click', () => navBackSafe());
     fwd.addEventListener('click', () => navFwdSafe());
+    // Chrome parity: right-clicking back/forward lists this tab's session
+    // history and jumps straight to an entry
+    back.addEventListener('contextmenu', (e) => { e.preventDefault(); navHistoryMenu(e, -1); });
+    fwd.addEventListener('contextmenu', (e) => { e.preventDefault(); navHistoryMenu(e, 1); });
+    // lock icon gives the same one-glance security answer Chrome does
+    $('#omni-lock').addEventListener('click', (e) => {
+        const t = activeTab();
+        if (!t?.url) return;
+        const https = t.url.startsWith('https');
+        showContextMenu(e.clientX, e.clientY, [
+            { label: https ? 'Connection is secure' : 'Connection is not secure',
+              icon: https ? 'fa-lock' : 'fa-unlock', disabled: true },
+            { label: `This site is ${https ? 'https' : 'http'} — data sent is ${https ? 'encrypted' : 'not encrypted'}`, icon: 'fa-circle-info', disabled: true },
+            'sep',
+            { label: 'Copy page URL', icon: 'fa-link', click: () => { clip.write(t.url); toast('URL copied', 'fa-link'); } },
+        ]);
+    });
+    on('zoom', (pct) => toast(`Zoom ${pct}%`, 'fa-magnifying-glass'));
     reload.addEventListener('click', () => {
         const t = activeTab();
         if (t?.webview) { if (t.loading) wvCall(t.webview, 'stop'); else wvCall(t.webview, 'reload'); }
@@ -203,6 +233,19 @@ function initToolbar() {
 
     function navBackSafe() { const t = activeTab(); if (wvCall(t?.webview, 'canGoBack')) wvCall(t.webview, 'goBack'); }
     function navFwdSafe() { const t = activeTab(); if (wvCall(t?.webview, 'canGoForward')) wvCall(t.webview, 'goForward'); }
+
+    function navHistoryMenu(e, dir) {
+        const t = activeTab();
+        const { entries, index } = navHistoryOf(t);
+        if (!entries.length) return;
+        const items = entries.map((h, i) => ({
+            label: h.title || hostOf(h.url),
+            icon: i === index ? 'fa-circle-dot' : 'fa-clock-rotate-left',
+            disabled: i === index,
+            click: () => wvCall(t.webview, 'goToOffset', i - index),
+        })).slice(-10);
+        showContextMenu(e.clientX, e.clientY, items);
+    }
 }
 
 export function updateNavButtons() {
@@ -257,8 +300,10 @@ function appMenu(e) {
         { label: 'Reset zoom', icon: 'fa-expand', key: 'Ctrl+0', click: zoomReset },
         'sep',
         { label: 'Print page…', icon: 'fa-print', key: 'Ctrl+P', disabled: !t?.webview, click: printActive },
+        { label: 'Save page as…', icon: 'fa-floppy-disk', key: 'Ctrl+S', disabled: !t?.webview, click: saveActivePage },
         { label: 'Toggle fullscreen', icon: 'fa-up-right-and-down-left-from-center', key: 'F11', click: () => window.pilot?.toggleFullscreen?.() },
         'sep',
+        { label: 'Downloads', icon: 'fa-download', key: 'Ctrl+J', click: () => openLibrary('downloads') },
         { label: 'Library', icon: 'fa-layer-group', key: 'Ctrl+H', click: () => openLibrary('history') },
         { label: 'Settings', icon: 'fa-gear', click: () => openLibrary('settings') },
         { label: 'Developer tools', icon: 'fa-code', key: 'F12', click: devTools },
@@ -278,14 +323,15 @@ export function webviewContextMenu({ tab, params }) {
         items.push(
             { label: 'Open link in new tab', icon: 'fa-plus', click: () => createTab({ url: params.linkURL, spaceId: tab.spaceId }) },
             { label: 'Open link in split', icon: 'fa-table-columns', click: () => splitActiveWith(createTab({ url: params.linkURL, activate: false, spaceId: tab.spaceId }).id) },
-            { label: 'Copy link', icon: 'fa-link', click: () => clip.write(params.linkURL) },
+            { label: 'Copy link', icon: 'fa-link', click: () => { clip.write(params.linkURL); toast('Link copied', 'fa-link'); } },
             'sep',
         );
     }
     if (params.mediaType === 'image' && params.srcURL) {
         items.push(
             { label: 'Open image in new tab', icon: 'fa-image', click: () => createTab({ url: params.srcURL, spaceId: tab.spaceId }) },
-            { label: 'Copy image address', icon: 'fa-link', click: () => clip.write(params.srcURL) },
+            { label: 'Copy image address', icon: 'fa-link', click: () => { clip.write(params.srcURL); toast('Image address copied', 'fa-link'); } },
+            { label: 'Save image as…', icon: 'fa-floppy-disk', click: () => window.pilot?.downloadUrl?.(params.srcURL) },
             'sep',
         );
     }
@@ -297,12 +343,20 @@ export function webviewContextMenu({ tab, params }) {
             'sep',
         );
     } else if (params.selectionText) {
-        items.push({ label: 'Copy', icon: 'fa-copy', click: () => clip.write(params.selectionText) }, 'sep');
+        items.push({ label: 'Copy', icon: 'fa-copy', click: () => { clip.write(params.selectionText); toast('Copied', 'fa-copy'); } }, 'sep');
+        const q = params.selectionText.trim();
+        if (q) items.push({
+            label: `Search ${db.settings.searchEngine} for "${q.length > 24 ? q.slice(0, 24) + '…' : q}"`,
+            icon: 'fa-magnifying-glass',
+            click: () => createTab({ url: (SEARCH_ENGINES[db.settings.searchEngine] || SEARCH_ENGINES.google)(q), spaceId: tab.spaceId }),
+        }, 'sep');
     }
     items.push(
         { label: 'Back', icon: 'fa-arrow-left', click: () => wvCall(wv, 'canGoBack') && wvCall(wv, 'goBack'), disabled: !wvCall(wv, 'canGoBack') },
         { label: 'Forward', icon: 'fa-arrow-right', click: () => wvCall(wv, 'canGoForward') && wvCall(wv, 'goForward'), disabled: !wvCall(wv, 'canGoForward') },
         { label: 'Reload', icon: 'fa-rotate-right', click: () => wvCall(wv, 'reload') },
+        { label: 'Save page as…', icon: 'fa-floppy-disk', click: saveActivePage },
+        { label: 'Copy page URL', icon: 'fa-link', click: () => { clip.write(wvCall(wv, 'getURL')); toast('URL copied', 'fa-link'); } },
         'sep',
         { label: 'View page source', icon: 'fa-code', click: () => createTab({ url: 'view-source:' + wvCall(wv, 'getURL'), spaceId: tab.spaceId }) },
         { label: 'Inspect element', icon: 'fa-bug', click: () => { wvCall(wv, 'openDevTools'); } },

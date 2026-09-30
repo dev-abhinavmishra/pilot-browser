@@ -180,6 +180,27 @@ function registerIpc() {
     if (typeof text === 'string') clipboard.writeText(text);
     return true;
   });
+  ipcMain.handle('download-url', (_e, url) => {
+    if (typeof url === 'string' && /^https?:/i.test(url)) {
+      session.fromPartition('persist:pilot').downloadURL(url);
+    }
+  });
+  // Ctrl+S — save the rendered page; the renderer passes the guest's webContents id
+  ipcMain.handle('save-page', async (_e, wcId) => {
+    const wc = require('electron').webContents.fromId(wcId);
+    if (!wc) return null;
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save page as',
+      defaultPath: 'page.html',
+      filters: [
+        { name: 'Webpage, complete', extensions: ['html'] },
+        { name: 'Webpage, single file', extensions: ['mhtml'] },
+      ],
+    });
+    if (canceled || !filePath) return null;
+    await wc.savePage(filePath, filePath.endsWith('.mhtml') ? 'MHTML' : 'HTMLComplete');
+    return filePath;
+  });
   // printToPDF lives in the renderer; the save dialog lives here
   ipcMain.handle('save-pdf', async (_e, buf) => {
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
@@ -303,9 +324,15 @@ app.whenReady().then(() => {
       if (input.type !== 'keyDown' || !mainWindow || mainWindow.isDestroyed()) return;
       const mod = input.control || input.meta;
       const key = (input.key || '').toLowerCase();
-      const combo = mod && input.shift ? `ms:${key}` : mod ? `m:${key}` : (key === 'f11' || key === 'f12') ? `k:${key}` : null;
-      const SHELL = new Set(['ms:t', 'ms:r', 'ms:b', 'ms:j', 'm:k', 'm:t', 'm:w', 'm:l', 'm:f', 'm:d', 'm:r', 'm:h', 'm:p', 'm:q', 'k:f11', 'k:f12']);
-      if (combo && SHELL.has(combo)) {
+      const combo = mod && input.shift ? `ms:${key}` : mod ? `m:${key}` : (key === 'f11' || key === 'f12' || key === 'f6') ? `k:${key}` : null;
+      const SHELL = new Set([
+        'ms:t', 'ms:r', 'ms:b', 'ms:j', 'ms:o', 'ms:tab',
+        'm:k', 'm:t', 'm:w', 'm:l', 'm:f', 'm:d', 'm:r', 'm:h', 'm:p', 'm:q',
+        'm:s', 'm:j', 'm:tab', 'm:=', 'm:-',
+        'k:f11', 'k:f12', 'k:f6',
+      ]);
+      const isDigit = /^m:[0-9]$/.test(combo || ''); // Ctrl+1-9 tab jumping + zoom reset
+      if (combo && (SHELL.has(combo) || isDigit)) {
         event.preventDefault();
         mainWindow.webContents.send('guest-shortcut', combo);
       }

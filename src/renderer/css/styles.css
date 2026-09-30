@@ -896,3 +896,42 @@ webview.in-split-right { border-left: 2px solid var(--line-2); order: 2; }
 
 /* misc */
 mark { background: color-mix(in srgb, var(--accent) 40%, transparent); color: inherit; border-radius: 2px; }
+
+/* ---------------------------------------------------------------------------
+   Premium microinteractions + a11y layer
+--------------------------------------------------------------------------- */
+.tab-item { animation: tabIn .16s var(--ease); }
+@keyframes tabIn { from { transform: translateX(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.pin-btn { transition: transform .14s var(--spring), border-color .15s, box-shadow .15s; }
+.pin-btn:hover { transform: translateY(-2px); }
+.pin-btn:active { transform: scale(.92); }
+.tab-action:active { transform: scale(.82); }
+.space-pill:hover { transform: translateY(-1px); }
+.foot-btn:hover { transform: translateY(-1px); }
+.foot-btn { transition: all .14s var(--ease), transform .1s; }
+.lib-tab { transition: all .14s; }
+.ctx-item { transition: background .1s, color .1s; }
+.ctx-item i { transition: transform .12s var(--spring); }
+.ctx-item:not(.disabled):hover > i:first-child { transform: scale(1.12); }
+.suggest-item { transition: background .1s; }
+.start-tile { transition: transform .14s var(--spring), border-color .15s, box-shadow .15s; }
+.start-tile:hover { transform: translateY(-2px); }
+.start-tile:active { transform: scale(.97); }
+
+webview { animation: wvIn .26s var(--ease); }
+@keyframes wvIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* keyboard users get a visible ring; mice don't */
+:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; border-radius: 4px; }
+input:focus-visible, textarea:focus-visible, [contenteditable]:focus-visible { outline: none; }
+
+/* design tip: honor reduced-motion rather than forcing animation */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

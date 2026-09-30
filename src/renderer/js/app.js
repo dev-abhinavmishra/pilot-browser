@@ -8,7 +8,7 @@ import {
 import { initStartPage, renderStartTiles } from './startpage.js';
 import { initSidebar, applySidebarSetting, toggleSidebarCollapsed } from './sidebar.js';
 import { initUi, updateNavButtons, updateOmniboxUrl, updateBookmarkBtn, focusOmnibox,
-    webviewContextMenu, toggleFindBar, openLibrary, toast, printActive } from './ui.js';
+    webviewContextMenu, toggleFindBar, openLibrary, toast, printActive, saveActivePage } from './ui.js';
 import { initOmnibox } from './omnibox.js';
 import { initPalette, openPalette, paletteOpen, closePalette } from './palette.js';
 import { initAssistant, toggle as toggleAssistant } from './assistant.js';
@@ -85,7 +85,7 @@ function initGuestShortcuts() {
     window.pilot?.onGuestShortcut?.((combo) => {
         const [kind, key] = combo.split(':');
         document.dispatchEvent(new KeyboardEvent('keydown', {
-            key, bubbles: true,
+            key: key === 'tab' ? 'Tab' : key, bubbles: true,
             ctrlKey: kind !== 'k' && window.__pilotPlatform !== 'darwin',
             metaKey: kind !== 'k' && window.__pilotPlatform === 'darwin',
             shiftKey: kind === 'ms',
@@ -124,6 +124,10 @@ function initShortcuts() {
         else if (mod && /^[1-8]$/.test(e.key)) { e.preventDefault(); activateAt(parseInt(e.key, 10) - 1); }
         else if (mod && e.key === '9') { e.preventDefault(); activateAt('last'); }
         else if (mod && shift && e.key.toLowerCase() === 'j') { e.preventDefault(); toggleAssistant(); }
+        else if (mod && !shift && e.key.toLowerCase() === 's') { e.preventDefault(); saveActivePage(); }
+        else if (mod && !shift && e.key.toLowerCase() === 'j') { e.preventDefault(); openLibrary('downloads'); }
+        else if (mod && shift && e.key.toLowerCase() === 'o') { e.preventDefault(); openLibrary('bookmarks'); }
+        else if (e.key === 'F6') { e.preventDefault(); focusOmnibox(); }
         else if (e.key === 'F12') { e.preventDefault(); devTools(); }
         else if (e.altKey && !mod && e.key === 'ArrowLeft') { e.preventDefault(); const t = activeTab(); wvCall(t?.webview, 'canGoBack') && wvCall(t.webview, 'goBack'); }
         else if (e.altKey && !mod && e.key === 'ArrowRight') { e.preventDefault(); const t = activeTab(); wvCall(t?.webview, 'canGoForward') && wvCall(t.webview, 'goForward'); }

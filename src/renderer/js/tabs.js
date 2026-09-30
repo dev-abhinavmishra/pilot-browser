@@ -127,6 +127,28 @@ function renderErrorPage(wv, e) {
     try { wv.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html)); } catch { /* noop */ }
 }
 
+// per-tab session history — powers the back/forward button menus.
+// Electron < 31 has no navigationHistory API, so the stack is tracked here.
+function trackNavStack(tab, url) {
+    if (!tab.hist) { tab.hist = []; tab.histIdx = -1; }
+    const cur = tab.hist[tab.histIdx];
+    if (cur && cur.url === url) return; // reload of current entry
+    const back = tab.histIdx > 0 && tab.hist[tab.histIdx - 1].url === url;
+    const fwd = tab.histIdx < tab.hist.length - 1 && tab.hist[tab.histIdx + 1].url === url;
+    if (back) { tab.histIdx--; return; }
+    if (fwd) { tab.histIdx++; return; }
+    // new destination — drop any forward tail like a real browser
+    tab.hist = tab.hist.slice(0, tab.histIdx + 1);
+    tab.hist.push({ url, title: tab.title });
+    if (tab.hist.length > 50) tab.hist.shift();
+    tab.histIdx = tab.hist.length - 1;
+}
+
+export function navHistoryOf(tab) {
+    if (!tab?.hist) return { entries: [], index: -1 };
+    return { entries: tab.hist, index: tab.histIdx };
+}
+
 function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -134,6 +156,7 @@ function escapeHtml(s) {
 function commitNav(tab, url) {
     // data: documents (the in-guest error page) must not clobber the real URL
     if (!url || url === 'about:blank' || /^data:/i.test(url)) return;
+    trackNavStack(tab, url);
     tab.url = url;
     tab.isStart = false;
     addHistory({ url, title: tab.title, favicon: tab.favicon });
@@ -243,6 +266,7 @@ export function closeTab(id) {
 }
 
 export function canReopenTab() { return closedStack.length > 0; }
+export function recentClosed() { return [...closedStack].reverse(); }
 
 export function reopenClosedTab() {
     const entry = closedStack.pop();
@@ -400,9 +424,16 @@ export function zoomBy(delta) {
     const t = activeTab();
     if (!t?.webview) return;
     const f = wvCall(t.webview, 'getZoomFactor');
-    if (typeof f === 'number') wvCall(t.webview, 'setZoomFactor', Math.min(3, Math.max(0.25, f + delta)));
+    if (typeof f === 'number') {
+        const next = Math.min(3, Math.max(0.25, f + delta));
+        wvCall(t.webview, 'setZoomFactor', next);
+        emit('zoom', Math.round(next * 100));
+    }
 }
-export function zoomReset() { const t = activeTab(); if (t?.webview) wvCall(t.webview, 'setZoomFactor', 1); }
+export function zoomReset() {
+    const t = activeTab();
+    if (t?.webview) { wvCall(t.webview, 'setZoomFactor', 1); emit('zoom', 100); }
+}
 
 export function devTools() { const t = activeTab(); if (t?.webview) wvCall(t.webview, 'openDevTools'); }
 
@@ -470,6 +501,7 @@ export function persistTabs() {
         favicon: t.favicon, pinned: t.pinned, muted: t.muted,
         isStart: t.isStart, splitWith: t.splitWith,
     }));
+    db.closedTabs = closedStack.slice(-25); // reopenable after a restart
     save();
 }
 
@@ -498,6 +530,7 @@ export function initTabs() {
     webviewsEl = document.getElementById('webviews');
     startOverlayEl = document.getElementById('start-overlay');
     statusBubbleEl = document.getElementById('status-bubble');
+    closedStack.push(...(db.closedTabs || []));
 
     on('target-url', (url) => {
         if (!url) { statusBubbleEl.classList.add('hidden'); return; }

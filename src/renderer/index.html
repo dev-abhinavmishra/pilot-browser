@@ -18,9 +18,9 @@
 
         <div class="sidebar-head">
             <div class="window-controls">
-                <button class="wc wc-close" id="wc-close" title="Close"></button>
-                <button class="wc wc-min" id="wc-min" title="Minimize"></button>
-                <button class="wc wc-max" id="wc-max" title="Maximize"></button>
+                <button class="wc wc-close" id="wc-close" title="Close" aria-label="Close"></button>
+                <button class="wc wc-min" id="wc-min" title="Minimize" aria-label="Minimize"></button>
+                <button class="wc wc-max" id="wc-max" title="Maximize" aria-label="Maximize"></button>
             </div>
             <div class="brand">
                 <svg class="brand-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -29,7 +29,7 @@
                 </svg>
                 <span>Pilot</span>
             </div>
-            <button id="sidebar-toggle" class="icon-btn" title="Toggle sidebar (Ctrl+Shift+B)">
+            <button id="sidebar-toggle" class="icon-btn" title="Toggle sidebar (Ctrl+Shift+B)" aria-label="Toggle sidebar (Ctrl+Shift+B)">
                 <i class="fa-solid fa-sidebar fa-flip-horizontal"></i>
             </button>
         </div>
@@ -43,11 +43,11 @@
         </div>
 
         <div class="sidebar-foot">
-            <button class="foot-btn" id="new-tab-btn" title="New tab (Ctrl+T)"><i class="fa-solid fa-plus"></i><span>NEW</span></button>
-            <button class="foot-btn" id="palette-btn" title="Command deck (Ctrl+K)"><i class="fa-solid fa-terminal"></i><span>DECK</span></button>
-            <button class="foot-btn" id="library-btn" title="Library: history, bookmarks, downloads"><i class="fa-solid fa-layer-group"></i><span>LOG</span></button>
-            <button class="foot-btn" id="assistant-toggle" title="Pilot AI assistant"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI</span></button>
-            <button class="foot-btn" id="settings-btn" title="Settings"><i class="fa-solid fa-gear"></i><span>SET</span></button>
+            <button class="foot-btn" id="new-tab-btn" title="New tab (Ctrl+T)" aria-label="New tab (Ctrl+T)"><i class="fa-solid fa-plus"></i><span>NEW</span></button>
+            <button class="foot-btn" id="palette-btn" title="Command deck (Ctrl+K)" aria-label="Command deck (Ctrl+K)"><i class="fa-solid fa-terminal"></i><span>DECK</span></button>
+            <button class="foot-btn" id="library-btn" title="Library: history, bookmarks, downloads" aria-label="Library: history, bookmarks, downloads"><i class="fa-solid fa-layer-group"></i><span>LOG</span></button>
+            <button class="foot-btn" id="assistant-toggle" title="Pilot AI assistant" aria-label="Pilot AI assistant"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI</span></button>
+            <button class="foot-btn" id="settings-btn" title="Settings" aria-label="Settings"><i class="fa-solid fa-gear"></i><span>SET</span></button>
         </div>
     </aside>
 
@@ -55,9 +55,9 @@
     <section id="main">
         <div id="toolbar" class="drag">
             <div class="nav-cluster nodrag">
-                <button class="icon-btn" id="nav-back" title="Back (Alt+←)"><i class="fa-solid fa-arrow-left"></i></button>
-                <button class="icon-btn" id="nav-forward" title="Forward (Alt+→)"><i class="fa-solid fa-arrow-right"></i></button>
-                <button class="icon-btn" id="nav-reload" title="Reload (Ctrl+R)"><i class="fa-solid fa-rotate-right"></i></button>
+                <button class="icon-btn" id="nav-back" title="Back (Alt+←)" aria-label="Back (Alt+←)"><i class="fa-solid fa-arrow-left"></i></button>
+                <button class="icon-btn" id="nav-forward" title="Forward (Alt+→)" aria-label="Forward (Alt+→)"><i class="fa-solid fa-arrow-right"></i></button>
+                <button class="icon-btn" id="nav-reload" title="Reload (Ctrl+R)" aria-label="Reload (Ctrl+R)"><i class="fa-solid fa-rotate-right"></i></button>
             </div>
             <div class="omnibox nodrag" id="omnibox">
                 <i class="fa-solid fa-lock omni-icon" id="omni-lock"></i>
@@ -65,10 +65,10 @@
                 <div class="omni-suggest" id="omni-suggest"></div>
             </div>
             <div class="tool-cluster nodrag">
-                <button class="icon-btn" id="btn-bookmark" title="Bookmark (Ctrl+D)"><i class="fa-regular fa-star"></i></button>
-                <button class="icon-btn" id="btn-find" title="Find in page (Ctrl+F)"><i class="fa-solid fa-magnifying-glass"></i></button>
-                <button class="icon-btn" id="btn-split" title="Split view"><i class="fa-solid fa-table-columns"></i></button>
-                <button class="icon-btn" id="btn-menu" title="Menu"><i class="fa-solid fa-ellipsis"></i></button>
+                <button class="icon-btn" id="btn-bookmark" title="Bookmark (Ctrl+D)" aria-label="Bookmark (Ctrl+D)"><i class="fa-regular fa-star"></i></button>
+                <button class="icon-btn" id="btn-find" title="Find in page (Ctrl+F)" aria-label="Find in page (Ctrl+F)"><i class="fa-solid fa-magnifying-glass"></i></button>
+                <button class="icon-btn" id="btn-split" title="Split view" aria-label="Split view"><i class="fa-solid fa-table-columns"></i></button>
+                <button class="icon-btn" id="btn-menu" title="Menu" aria-label="Menu"><i class="fa-solid fa-ellipsis"></i></button>
             </div>
         </div>
         <div id="progress"><div id="progress-fill"></div></div>
@@ -154,7 +154,7 @@
         </div>
         <div class="assistant-body" id="assistant-body"></div>
         <div class="assistant-foot">
-            <button class="chip" id="assistant-summarize" title="Summarize current page"><i class="fa-solid fa-align-left"></i> Summarize page</button>
+            <button class="chip" id="assistant-summarize" title="Summarize current page" aria-label="Summarize current page"><i class="fa-solid fa-align-left"></i> Summarize page</button>
             <div class="assistant-input-row">
                 <input id="assistant-input" type="text" placeholder="Ask anything…" autocomplete="off">
                 <button class="icon-btn send" id="assistant-send"><i class="fa-solid fa-paper-plane"></i></button>
