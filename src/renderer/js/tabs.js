@@ -339,6 +339,12 @@ export function duplicateTab(id) {
 export function moveTabToSpace(id, spaceId) {
     const tab = tabs.get(id);
     if (!tab) return;
+    // a split is intra-space — dissolve it or the mate's link dangles
+    if (tab.splitWith) {
+        const mate = tabs.get(tab.splitWith);
+        if (mate) { mate.splitWith = null; mate.webview?.classList.remove('in-split-right'); }
+        tab.splitWith = null;
+    }
     tab.spaceId = spaceId;
     if (db.activeSpaceId !== spaceId && db.activeTabId === id) {
         const next = tabsInSpace().filter(t => t !== tab).pop();
@@ -543,6 +549,8 @@ export function initTabs() {
         statusBubbleEl.textContent = url;
         statusBubbleEl.classList.remove('hidden');
     });
+    // a link-hover hint from the previous tab shouldn't linger after switching
+    on('active-changed', () => statusBubbleEl.classList.add('hidden'));
 
     // new window requests from the shell and from guest popups
     if (window.pilot?.onOpenUrlInTab) {

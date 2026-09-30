@@ -138,10 +138,17 @@ function setupDownloads() {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const name = item.getFilename();
     const dir = app.getPath('downloads');
-    const target = path.join(dir, name);
+    // Chrome-style collision handling: 'file (1).ext' — setSavePath would
+    // otherwise silently overwrite an existing download
+    const ext = path.extname(name);
+    const stem = name.slice(0, name.length - ext.length);
+    let target = path.join(dir, name);
+    for (let n = 1; fs.existsSync(target); n++) {
+      target = path.join(dir, `${stem} (${n})${ext}`);
+    }
     item.setSavePath(target);
 
-    const entry = { id, name, path: target, total: item.getTotalBytes(), received: 0, state: 'progressing' };
+    const entry = { id, name: path.basename(target), path: target, total: item.getTotalBytes(), received: 0, state: 'progressing' };
     downloads.set(id, entry);
     const push = () => mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.send('download-update', entry);
 
@@ -335,10 +342,14 @@ app.whenReady().then(() => {
       const SHELL = new Set([
         'ms:t', 'ms:r', 'ms:b', 'ms:j', 'ms:o', 'ms:tab',
         'm:k', 'm:t', 'm:w', 'm:l', 'm:f', 'm:d', 'm:r', 'm:h', 'm:p', 'm:q',
-        'm:s', 'm:j', 'm:tab', 'm:=', 'm:-',
-        'a:arrowleft', 'a:arrowright',
+        'm:s', 'm:j', 'm:tab', 'm:=', 'm:-', 'm:[', 'm:]',
         'k:f11', 'k:f12', 'k:f6',
       ]);
+      // macOS: Alt+arrows are word-jumps inside fields, never history nav —
+      // only forward them elsewhere (⌘[ ⌘] cover nav on darwin)
+      if (process.platform !== 'darwin') {
+        SHELL.add('a:arrowleft'); SHELL.add('a:arrowright');
+      }
       const isDigit = /^m:[0-9]$/.test(combo || ''); // Ctrl+1-9 tab jumping + zoom reset
       if (combo && (SHELL.has(combo) || isDigit)) {
         event.preventDefault();

@@ -133,5 +133,7 @@ function initShortcuts() {
         else if (e.key === 'F12') { e.preventDefault(); devTools(); }
         else if (e.altKey && !mod && e.key === 'ArrowLeft') { e.preventDefault(); const t = activeTab(); wvCall(t?.webview, 'canGoBack') && wvCall(t.webview, 'goBack'); }
         else if (e.altKey && !mod && e.key === 'ArrowRight') { e.preventDefault(); const t = activeTab(); wvCall(t?.webview, 'canGoForward') && wvCall(t.webview, 'goForward'); }
+        else if (mod && !shift && e.key === '[') { e.preventDefault(); const t = activeTab(); wvCall(t?.webview, 'canGoBack') && wvCall(t.webview, 'goBack'); } // ⌘[ on macOS
+        else if (mod && !shift && e.key === ']') { e.preventDefault(); const t = activeTab(); wvCall(t?.webview, 'canGoForward') && wvCall(t.webview, 'goForward'); }
     });
 }
