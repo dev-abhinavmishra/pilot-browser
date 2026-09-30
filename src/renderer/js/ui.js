@@ -59,6 +59,9 @@ export function miniDialog({ title, initial = null, okLabel = 'OK', danger = fal
         if (inp) inp.value = initial;
         const finish = (v) => { wrap.remove(); document.removeEventListener('keydown', onKey, true); resolve(v); };
         const onKey = (e) => {
+            // stacked modals: only the topmost one answers keys
+            const tops = [...document.querySelectorAll('.mini-modal')];
+            if (tops[tops.length - 1] !== wrap) return;
             if (e.key === 'Escape') { e.stopPropagation(); finish(initial === null ? false : null); }
             else if (e.key === 'Enter') { e.stopPropagation(); finish(inp ? (inp.value.trim() || null) : true); }
         };
