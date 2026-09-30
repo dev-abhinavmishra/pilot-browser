@@ -85,10 +85,17 @@ function logStep(entry) {
     const el = document.createElement('div');
     el.className = 'agent-line' + (entry.ok === false ? ' bad' : '');
     const arg = entry.arg ? Object.entries(entry.arg).map(([k, v]) => `${k}=${v}`).join(' ') : '';
-    el.innerHTML = `<span class="agent-step">${entry.step}</span>` +
-        `<span class="agent-act">${entry.action}${arg ? ' ' + arg : ''}</span>` +
-        `<span class="agent-res"></span>`;
-    el.querySelector('.agent-res').textContent = entry.thought ? `${entry.thought} — ${entry.result}` : String(entry.result ?? '');
+    // everything below is textContent — action/arg values are page-influenced
+    const step = document.createElement('span');
+    step.className = 'agent-step';
+    step.textContent = entry.step;
+    const act = document.createElement('span');
+    act.className = 'agent-act';
+    act.textContent = `${entry.action}${arg ? ' ' + arg : ''}`;
+    const res = document.createElement('span');
+    res.className = 'agent-res';
+    res.textContent = entry.thought ? `${entry.thought} — ${entry.result}` : String(entry.result ?? '');
+    el.append(step, act, res);
     body.appendChild(el);
     body.scrollTop = body.scrollHeight;
 }

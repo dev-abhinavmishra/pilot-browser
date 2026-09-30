@@ -86,7 +86,7 @@ function waitForLoad(wv) {
                 return;
             }
             if (!loading) { clearInterval(iv); resolve({ ok: true, note: 'loaded' }); }
-            else if (Date.now() - start > NAV_TIMEOUT_MS) { clearInterval(iv); resolve({ ok: true, note: 'load timeout — continuing' }); }
+            else if (Date.now() - start > NAV_TIMEOUT_MS) { clearInterval(iv); resolve({ ok: false, note: 'load timeout' }); }
         }, 250);
     });
 }

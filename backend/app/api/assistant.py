@@ -171,8 +171,11 @@ def _clean_url(url: str) -> Optional[str]:
     return None
 
 
-def _validate_plan(plan: Dict[str, Any]) -> Optional[AgentStepResponse]:
-    """Sanitize an LLM-produced plan; return None if unusable."""
+def _validate_plan(plan: Dict[str, Any], max_id: Optional[int] = None) -> Optional[AgentStepResponse]:
+    """Sanitize an LLM-produced plan; return None if unusable.
+
+    max_id bounds element ids to what the snapshot actually exposed — the model
+    must not reference elements it never observed."""
     action = str(plan.get("action") or "").lower()
     if action not in AGENT_ACTIONS:
         return None
@@ -192,9 +195,12 @@ def _validate_plan(plan: Dict[str, Any]) -> Optional[AgentStepResponse]:
         out["arg"]["query"] = q
     elif action in ("click", "type"):
         try:
-            out["arg"]["id"] = int(arg.get("id"))
+            el_id = int(arg.get("id"))
         except (TypeError, ValueError):
             return None
+        if max_id is not None and not (0 <= el_id < max_id):
+            return None
+        out["arg"]["id"] = el_id
         if action == "type":
             out["arg"]["text"] = str(arg.get("text") or "")[:500]
             out["arg"]["submit"] = bool(arg.get("submit"))
@@ -278,8 +284,10 @@ def _rule_plan(req: AgentStepRequest) -> AgentStepResponse:
     if m:
         q = m.group(1).strip(" .")
         if q and not _clean_url(q):
-            if already_did("search", q):
-                return AgentStepResponse(thought="Search already ran.", action="done",
+            cur = req.snapshot.url if req.snapshot and req.snapshot.url else ""
+            on_results = "duckduckgo.com" in cur and (q.replace(" ", "+") in cur or q.replace(" ", "%20") in cur)
+            if on_results or already_did("search", q):
+                return AgentStepResponse(thought="Search results are on screen.", action="done",
                                        final_answer=f"Search results for '{q}' are on screen.")
             return AgentStepResponse(thought=f"Searching for: {q}", action="search", arg={"query": q})
 
@@ -291,6 +299,9 @@ def _rule_plan(req: AgentStepRequest) -> AgentStepResponse:
 
     m = re.search(r"click(?:ing)? (?:the |on )?[\"']?(.+?)[\"']?\s*$", g)
     if m:
+        # a click goal is satisfied by one successful click — never re-fire
+        if any(h.get("action") == "click" and h.get("ok", True) is not False for h in req.history):
+            return AgentStepResponse(thought="Already clicked.", action="done", final_answer="Clicked the element.")
         target = m.group(1).strip()
         best = None
         for el in els:
@@ -304,6 +315,9 @@ def _rule_plan(req: AgentStepRequest) -> AgentStepResponse:
     m = re.search(r"(?:type|enter|fill(?: in)?) [\"'](.+?)[\"']\s*(?:in(?:to)?|as)\s+(?:the\s+)?[\"']?(.+?)[\"']?\s*$", g)
     if m:
         text, target = m.group(1), m.group(2)
+        # a type goal is satisfied by one successful fill — never resubmit
+        if any(h.get("action") == "type" and h.get("ok", True) is not False for h in req.history):
+            return AgentStepResponse(thought="Already typed.", action="done", final_answer="Entered the text.")
         for el in els:
             if el.tag in ("input", "textarea") or el.type in ("text", "search", "email", "url", "password"):
                 label = (el.placeholder or el.text or "").lower()
@@ -318,9 +332,6 @@ def _rule_plan(req: AgentStepRequest) -> AgentStepResponse:
             return AgentStepResponse(thought=f"Already scrolled {d}.", action="done", final_answer=f"Scrolled {d}.")
         return AgentStepResponse(thought=f"Scrolling {d}.", action="scroll", arg={"direction": d})
 
-    done = extract_done()
-    if done:
-        return done
     return AgentStepResponse(
         thought="No rule matches and no LLM planner is available.",
         action="fail",
@@ -375,7 +386,7 @@ async def _llm_plan(req: AgentStepRequest) -> Optional[AgentStepResponse]:
         if not m:
             return None
         plan = json.loads(m.group(0))
-        return _validate_plan(plan)
+        return _validate_plan(plan, max_id=len(snap.elements))
     except Exception as e:
         logger.info(f"LLM planner unavailable: {e}")
         return None

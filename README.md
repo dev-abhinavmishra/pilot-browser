@@ -27,6 +27,12 @@ spaces, a command palette, split view, and an optional local AI assistant.
   page or answer questions using it as context. Powered by the bundled FastAPI
   backend: an OpenAI-compatible local LLM (e.g. LM Studio) when one is
   configured, with a DuckDuckGo instant-answer fallback so it always responds.
+- **Task mode (in-browser agent)** — toggle the **Task** chip in the AI panel
+  and describe a goal; Pilot then drives the active tab itself: it reads the
+  page, asks the backend for the next action (`navigate`, `search`, `click`,
+  `type`, `scroll`, `extract`), executes it, and repeats until done — logging
+  every step and reporting the result. The send button becomes a stop button
+  while a task runs.
 - **Dark and light themes** plus a "Dark web pages" option; per-space accent
   colors; frameless window with traffic-light controls.
 
@@ -81,6 +87,27 @@ export LLM_MODEL=gemma-3-4b
 ```
 
 The backend URL is also configurable in Settings → Pilot AI Backend.
+
+### Task mode
+
+Task mode posts the goal plus a snapshot of the current page (URL, title,
+visible text, and a bounded list of interactive elements) to
+`POST /api/v1/assistant/agent-step`, which returns one action at a time. With
+an LLM configured, the model plans the steps; without one, a deterministic
+fallback handles `go to <site>`, `search for <q>`, `click the <label>` ,
+`type "<text>" into <field>`, `scroll`, and `summarize this page`.
+
+Safety boundaries: navigation is restricted to `http(s)`, element actions are
+limited to elements seen in the last snapshot, tasks act only in the current
+tab, and runs are capped at 12 steps with cancel-anytime. Note that page
+content is passed to the model — actions (including clicks and form submits)
+run without per-step approval, so only run tasks on pages you trust.
+
+Run the backend agent-endpoint tests with:
+
+```bash
+cd backend && ../.venv/bin/python -m pytest tests/
+```
 
 ### Production build
 

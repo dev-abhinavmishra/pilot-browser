@@ -160,6 +160,44 @@ def test_failed_navigate_retries_not_done(client):
     assert body["action"] == "navigate"
 
 
+def test_click_completes_after_one_click(client):
+    # Devin Review: a successful click must terminate the goal, not re-fire
+    snap = {"url": "https://site.example", "elements": [{"id": 0, "tag": "a", "text": "Pricing"}]}
+    hist = [{"action": "click", "arg": {"id": 0}, "result": "clicked Pricing", "ok": True}]
+    body = post(client, goal="click the pricing link", snapshot=snap, history=hist).json()
+    assert body["action"] == "done"
+
+
+def test_type_completes_after_one_fill(client):
+    snap = {"url": "https://site.example", "elements": [{"id": 0, "tag": "input", "placeholder": "Search…"}]}
+    hist = [{"action": "type", "arg": {"id": 0, "text": "hello"}, "result": "typed", "ok": True}]
+    body = post(client, goal='type "hello" into the search box', snapshot=snap, history=hist).json()
+    assert body["action"] == "done"
+
+
+def test_extract_does_not_complete_unrelated_goal(client):
+    # a prior extract must not satisfy a goal that isn't about reading the page
+    hist = [{"action": "extract", "result": "page text", "ok": True}]
+    body = post(client, goal="frobulate the widget", snapshot={"url": "https://x.example"}, history=hist).json()
+    assert body["action"] == "fail"
+
+
+def test_search_done_when_results_already_on_screen(client):
+    snap = {"url": "https://duckduckgo.com/?q=cats", "title": "cats at DDG", "elements": []}
+    body = post(client, goal="search for cats", snapshot=snap).json()
+    assert body["action"] == "done"
+
+
+def test_validate_plan_rejects_id_beyond_snapshot():
+    out = assistant._validate_plan({"action": "click", "arg": {"id": 99}}, max_id=2)
+    assert out is None
+
+
+def test_validate_plan_accepts_id_within_snapshot():
+    out = assistant._validate_plan({"action": "click", "arg": {"id": 1}}, max_id=2)
+    assert out is not None and out.arg["id"] == 1
+
+
 def test_step_limit_returns_done(client):
     hist = [{"action": "scroll", "result": "scrolled down"}] * 12
     body = post(client, goal="keep scrolling", snapshot={"url": "https://x.example"}, history=hist).json()
