@@ -104,6 +104,7 @@ async function renameSpace(s) {
     const name = await textPrompt('Space name', s.name);
     if (!name) return;
     s.name = name; save(); renderSpaces();
+    window.dispatchEvent(new Event('pilot:space-changed'));
 }
 
 // ---------------------------------------------------------------------------

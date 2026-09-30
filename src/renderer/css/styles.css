@@ -941,7 +941,8 @@ input:focus-visible, textarea:focus-visible, [contenteditable]:focus-visible { o
 }
 
 /* mini dialog — themed replacement for window.prompt/confirm (unsupported) */
-.mini-modal { position: fixed; inset: 0; z-index: 80; background: rgba(4,6,12,.55);
+/* sits above the library overlay (z-100) and ctx menus; toasts stay on top */
+.mini-modal { position: fixed; inset: 0; z-index: 250; background: rgba(4,6,12,.55);
     backdrop-filter: blur(3px); display: flex; align-items: flex-start; justify-content: center;
     padding-top: 18vh; animation: fadeIn .15s var(--ease); }
 .mini-card { width: 360px; background: var(--panel); border: 1px solid var(--line);
