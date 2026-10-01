@@ -298,3 +298,76 @@ def test_llm_exception_falls_back(client, monkeypatch):
     body = post(client, goal="scroll down", snapshot={"url": "https://x.example"}).json()
     # an exploding LLM planner must degrade to rules, not 500
     assert body["action"] == "scroll"
+
+
+# --- approval gate ---------------------------------------------------------
+# Consequential actions (click/type/press_enter) must carry a `confirm` text so
+# the UI can ask the user before executing; read-only actions must not.
+
+def test_rule_click_plan_requires_confirm(client):
+    snap = {"url": "https://site.example", "elements": [{"id": 0, "tag": "a", "text": "Pricing", "href": "/p"}]}
+    body = post(client, goal="click the pricing link", snapshot=snap).json()
+    assert body["action"] == "click"
+    assert body["confirm"] and "Pricing" in body["confirm"]
+
+
+def test_rule_type_plan_requires_confirm(client):
+    snap = {"url": "https://site.example", "elements": [{"id": 0, "tag": "input", "placeholder": "Search…"}]}
+    body = post(client, goal='type "hi" into the search box', snapshot=snap).json()
+    assert body["action"] == "type"
+    assert body["confirm"] and "hi" in body["confirm"]
+
+
+def test_navigate_plan_needs_no_confirm(client):
+    body = post(client, goal="go to example.com").json()
+    assert body["action"] == "navigate"
+    assert body["confirm"] is None
+
+
+def test_validate_plan_sets_confirm_with_element_label():
+    els = [assistant.AgentElement(id=0, tag="a", text="Buy now")]
+    out = assistant._validate_plan({"action": "click", "arg": {"id": 0}}, max_id=1, elements=els)
+    assert out is not None and out.confirm and "Buy now" in out.confirm
+
+
+def test_validate_plan_press_enter_requires_confirm():
+    out = assistant._validate_plan({"action": "press_enter", "arg": {}})
+    assert out is not None and out.confirm
+
+
+def test_validate_plan_safe_actions_have_no_confirm():
+    out = assistant._validate_plan({"action": "scroll", "arg": {"direction": "down"}})
+    assert out is not None and out.confirm is None
+    out = assistant._validate_plan({"action": "navigate", "arg": {"url": "https://x.example"}})
+    assert out is not None and out.confirm is None
+
+
+# --- status endpoint ---------------------------------------------------------
+
+def test_status_endpoint_shape(client):
+    body = client.get("/assistant/status").json()
+    assert body["backend"] == "ok"
+    assert "model" in body
+    assert "llm_configured" in body and "llm_available" in body
+
+
+# --- LLM cooldown ------------------------------------------------------------
+# After a failed probe the planner must skip the dead model for the cooldown
+# window instead of paying its connect-timeout on every step.
+
+def test_llm_down_cooldown():
+    assistant._llm_mark(False, "x")
+    assert assistant._llm_down() is True
+    assistant._llm_mark(True)
+    assert assistant._llm_down() is False
+    assistant._llm_state.update(ok=None, error=None, since=0.0)
+
+
+def test_llm_plan_returns_none_immediately_when_down():
+    import asyncio
+    assistant._llm_mark(False, "down")
+    try:
+        out = asyncio.run(assistant._llm_plan(assistant.AgentStepRequest(goal="go to example.com")))
+        assert out is None
+    finally:
+        assistant._llm_state.update(ok=None, error=None, since=0.0)

@@ -150,7 +150,10 @@
     <aside id="assistant-panel" class="hidden">
         <div class="assistant-head">
             <div class="assistant-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Pilot AI</div>
-            <button class="icon-btn" id="assistant-close"><i class="fa-solid fa-xmark"></i></button>
+            <div class="assistant-head-right">
+                <span class="ai-status" id="assistant-status" title="Which AI is answering: the configured LLM or built-in rules"></span>
+                <button class="icon-btn" id="assistant-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
         </div>
         <div class="assistant-body" id="assistant-body"></div>
         <div class="assistant-foot">

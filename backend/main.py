@@ -68,37 +68,13 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "An unexpected error occurred"},
     )
 
-# Startup event
 @app.on_event("startup")
 async def startup_event():
-    """Initialize services on startup"""
-    logger.info("Starting Pilot Browser Backend...")
-    # Initialize services, load models, etc.
-    try:
-        # Initialize database connection
-        from app.core.database import init_db
-        await init_db()
-        
-        # Initialize AI services
-        from app.services.agent_service import AgentService
-        await AgentService().initialize()
-        
-        logger.info("Pilot Browser Backend started successfully")
-    except Exception as e:
-        logger.error(f"Error during startup: {str(e)}", exc_info=True)
-        raise
+    logger.info("Pilot Browser Backend started")
 
-# Shutdown event
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Clean up resources on shutdown"""
-    logger.info("Shutting down Pilot Browser Backend...")
-    # Clean up resources, close connections, etc.
-    try:
-        from app.services.agent_service import AgentService
-        await AgentService().shutdown()
-    except Exception as e:
-        logger.error(f"Error during shutdown: {str(e)}", exc_info=True)
+    logger.info("Shutting down Pilot Browser Backend")
 
 # For development with uvicorn
 if __name__ == "__main__":
