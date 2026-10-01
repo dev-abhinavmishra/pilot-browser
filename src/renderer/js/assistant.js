@@ -281,6 +281,11 @@ function renderAskError(err, q) {
         renderAnswer({ answer: 'Pilot is rate-limiting requests — wait a few seconds and try again.', sources: [] });
         return;
     }
+    // a slow model hitting the fetch timeout is NOT the backend being offline
+    if (err && (/abort|timed?\s?out/i.test(err.name || '') || /abort|timed?\s?out/i.test(err.message || ''))) {
+        renderAnswer({ answer: 'The model took too long to respond — try again in a few seconds (it may still be warming up).', sources: [] });
+        return;
+    }
     backendUp = false;
     renderAnswer(fallbackAnswer(q));
 }
@@ -318,10 +323,9 @@ async function summarizePage() {
         const ans = await ask('Summarize this page in 4-6 bullet points.', page);
         t.remove();
         renderAnswer(ans);
-    } catch {
+    } catch (err) {
         t.remove();
-        backendUp = false;
-        bubble('The Pilot backend isn\'t running — start it with `cd backend && uvicorn main:app` to enable AI summaries.', 'ai');
+        renderAskError(err, 'summarize this page');
     }
     refreshStatus();
 }
