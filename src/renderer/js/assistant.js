@@ -3,9 +3,12 @@
 import { db } from './store.js';
 import { activeTab, navigateActive } from './tabs.js';
 import { toast } from './ui.js';
+import { runAgentTask } from './agent.js';
 
 let panel, body, input;
 let backendUp = null;
+let taskMode = false;
+let taskControl = null;   // {cancelled} while a task is running
 
 export function initAssistant() {
     panel = document.getElementById('assistant-panel');
@@ -16,6 +19,7 @@ export function initAssistant() {
     document.getElementById('assistant-close').addEventListener('click', close);
     document.getElementById('assistant-send').addEventListener('click', send);
     document.getElementById('assistant-summarize').addEventListener('click', summarizePage);
+    document.getElementById('assistant-task').addEventListener('click', toggleTaskMode);
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
 
     emptyState();
@@ -63,10 +67,79 @@ function typing() {
     return el;
 }
 
+function toggleTaskMode() {
+    taskMode = !taskMode;
+    document.getElementById('assistant-task').classList.toggle('active', taskMode);
+    input.placeholder = taskMode ? 'Describe a task for Pilot to do…' : 'Ask anything…';
+    input.focus();
+}
+
+function setRunning(running) {
+    const btn = document.getElementById('assistant-send');
+    btn.classList.toggle('stop', running);
+    btn.innerHTML = running ? '<i class="fa-solid fa-stop"></i>' : '<i class="fa-solid fa-paper-plane"></i>';
+    input.disabled = running;
+}
+
+function thinkingStep() {
+    const t = document.createElement('div');
+    t.className = 'agent-line thinking';
+    t.innerHTML = '<i class="fa-solid fa-ellipsis"></i><span class="agent-res">Pilot is planning the next step…</span>';
+    body.appendChild(t);
+    body.scrollTop = body.scrollHeight;
+}
+
+function logStep(entry) {
+    body.querySelectorAll('.agent-line.thinking').forEach(n => n.remove());
+    const el = document.createElement('div');
+    el.className = 'agent-line' + (entry.ok === false ? ' bad' : '');
+    const arg = entry.arg ? Object.entries(entry.arg).map(([k, v]) => `${k}=${v}`).join(' ') : '';
+    // everything below is textContent — action/arg values are page-influenced
+    const step = document.createElement('span');
+    step.className = 'agent-step';
+    step.textContent = entry.step;
+    const act = document.createElement('span');
+    act.className = 'agent-act';
+    act.textContent = `${entry.action}${arg ? ' ' + arg : ''}`;
+    const res = document.createElement('span');
+    res.className = 'agent-res';
+    res.textContent = entry.thought ? `${entry.thought} — ${entry.result}` : String(entry.result ?? '');
+    el.append(step, act, res);
+    body.appendChild(el);
+    if (entry.action !== 'done' && entry.action !== 'fail') thinkingStep();
+    body.scrollTop = body.scrollHeight;
+}
+
+async function runTask(q) {
+    bubble(q, 'user');
+    taskControl = { cancelled: false };
+    setRunning(true);
+    const head = document.createElement('div');
+    head.className = 'agent-line head';
+    head.innerHTML = '<i class="fa-solid fa-rocket"></i> <span>Task started — Pilot is driving this tab.</span>';
+    body.appendChild(head);
+    thinkingStep();
+    body.scrollTop = body.scrollHeight;
+    try {
+        const res = await runAgentTask(q, logStep, taskControl);
+        backendUp = true;
+        bubble(res.report, 'ai');
+    } catch {
+        backendUp = false;
+        bubble('The Pilot backend isn\'t running — start it with `cd backend && uvicorn main:app` to run tasks.', 'ai');
+    } finally {
+        body.querySelectorAll('.agent-line.thinking').forEach(n => n.remove());
+        taskControl = null;
+        setRunning(false);
+    }
+}
+
 async function send() {
+    if (taskControl) { taskControl.cancelled = true; return; }   // running: button is a stop button
     const q = input.value.trim();
     if (!q) return;
     input.value = '';
+    if (taskMode) { runTask(q); return; }
     bubble(q, 'user');
     const t = typing();
     try {
@@ -76,8 +149,7 @@ async function send() {
         renderAnswer(ans);
     } catch (err) {
         t.remove();
-        backendUp = false;
-        renderAnswer(fallbackAnswer(q));
+        renderAskError(err, q);
     }
 }
 
@@ -91,10 +163,9 @@ export async function askFromConsole(q) {
         const ans = await ask(q, page);
         t.remove();
         renderAnswer(ans);
-    } catch {
+    } catch (err) {
         t.remove();
-        backendUp = false;
-        renderAnswer(fallbackAnswer(q));
+        renderAskError(err, q);
     }
 }
 
@@ -102,9 +173,14 @@ async function currentPageContext() {
     const tab = activeTab();
     if (!tab?.webview || !tab.url) return null;
     try {
-        const text = await tab.webview.executeJavaScript(
-            `(document.body ? document.body.innerText.slice(0, 6000) : '')`
-        );
+        // race a timeout — a hung guest would otherwise wedge the ask forever
+        const text = await Promise.race([
+            tab.webview.executeJavaScript(
+                `(document.body ? document.body.innerText.slice(0, 6000) : '')`, true
+            ),
+            new Promise((res) => setTimeout(() => res(null), 6000)),
+        ]);
+        if (text === null) return null;
         return { url: tab.url, title: tab.title, excerpt: text };
     } catch { return null; }
 }
@@ -117,9 +193,19 @@ async function ask(query, page) {
         body: JSON.stringify({ query, page }),
         signal: AbortSignal.timeout(20000),
     });
+    if (res.status === 429) { const e = new Error('rate limited'); e.code = 'rate_limited'; throw e; }
     if (!res.ok) throw new Error('backend ' + res.status);
     backendUp = true;
     return res.json();
+}
+
+function renderAskError(err, q) {
+    if (err && err.code === 'rate_limited') {
+        renderAnswer({ answer: 'Pilot is rate-limiting requests — wait a few seconds and try again.', sources: [] });
+        return;
+    }
+    backendUp = false;
+    renderAnswer(fallbackAnswer(q));
 }
 
 function renderAnswer(ans) {

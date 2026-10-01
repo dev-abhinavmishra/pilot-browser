@@ -691,6 +691,27 @@ webview.in-split-right { border-left: 2px solid var(--line-2); order: 2; }
 }
 .chip:hover { background: var(--panel-2); color: var(--text); border-color: var(--line-2); }
 .chip i { margin-right: 5px; }
+.chip.active { background: color-mix(in srgb, var(--accent) 18%, var(--panel)); border-color: var(--accent); color: var(--text); }
+.chip.active i { color: var(--accent); }
+.agent-line {
+    display: flex; gap: 7px; align-items: baseline; width: 100%;
+    font-family: var(--font-m); font-size: 10.5px; letter-spacing: .3px;
+    color: var(--text-2); padding: 5px 8px; border-left: 2px solid var(--line);
+    margin: 2px 0; background: color-mix(in srgb, var(--panel) 60%, transparent);
+}
+.agent-line.head { border-left-color: var(--accent); color: var(--text); }
+.agent-line.head i { color: var(--accent); margin-right: 4px; }
+.agent-line.bad { border-left-color: var(--danger, #f87171); }
+.agent-line.thinking { border-left-color: var(--accent-2); opacity: .7; }
+.agent-line.thinking i { color: var(--accent-2); animation: blink 1.2s infinite; margin-right: 4px; }
+.agent-line .agent-step {
+    min-width: 16px; height: 16px; border-radius: 4px; display: inline-flex;
+    align-items: center; justify-content: center; font-size: 9px;
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--text-3);
+}
+.agent-line .agent-act { color: var(--accent-2); font-weight: 700; white-space: nowrap; }
+.agent-line .agent-res { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.assistant-input-row .send.stop { background: var(--danger, #f87171); }
 .assistant-input-row {
     display: flex; align-items: center; gap: 6px;
     background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r-m); padding: 4px 4px 4px 13px;
