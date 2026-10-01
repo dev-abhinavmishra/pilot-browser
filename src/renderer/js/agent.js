@@ -228,6 +228,20 @@ export async function runAgentTask(goal, onStep = () => {}, control = { cancelle
             return { status: ok ? 'done' : 'failed', report };
         }
 
+        // consequential actions (clicks, form fills, submits) pause for user approval
+        if (plan.confirm && control.confirm) {
+            const decision = await control.confirm(String(plan.confirm));
+            if (decision === 'stop' || control.cancelled) {
+                onStep({ step, thought: plan.thought, action, arg: plan.arg, result: 'stopped by you', ok: null });
+                return { status: 'cancelled', report: 'Task cancelled.' };
+            }
+            if (!decision) {
+                history.push({ action, arg: plan.arg, result: 'user declined this action', ok: false });
+                onStep({ step, thought: plan.thought, action, arg: plan.arg, result: `skipped — ${plan.confirm}`, ok: null });
+                continue;
+            }
+        }
+
         let outcome;
         try { outcome = await execAction(tab, action, plan.arg || {}); }
         catch (e) { outcome = { ok: false, result: e.message || 'action failed' }; }

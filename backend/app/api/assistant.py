@@ -28,6 +28,20 @@ _MAX_QUERY = 2000         # chars
 _MAX_EXCERPT = 8000       # chars
 _rate: Dict[str, deque] = {}
 
+# last observed LLM health — set by _llm_answer/_llm_plan; None until first attempt
+_llm_state: Dict[str, Any] = {"ok": None, "error": None, "since": 0.0}
+_LLM_RETRY_COOLDOWN = 30.0   # seconds to skip a known-down model before probing again
+
+
+def _llm_down() -> bool:
+    """True when the last probe failed inside the cooldown window — callers then
+    skip the LLM instead of paying its connect-timeout retry on every request."""
+    return _llm_state["ok"] is False and (time.monotonic() - _llm_state["since"]) < _LLM_RETRY_COOLDOWN
+
+
+def _llm_mark(ok: bool, error: Optional[str] = None) -> None:
+    _llm_state.update(ok=ok, error=error, since=time.monotonic())
+
 
 def _rate_limited(key: str, max_req: int = _RATE_MAX) -> bool:
     now = time.monotonic()
@@ -58,7 +72,7 @@ class AskResponse(BaseModel):
 
 async def _llm_answer(req: AskRequest) -> Optional[str]:
     """Try the configured OpenAI-compatible backend; return None on failure."""
-    if not settings.OPENAI_API_KEY:
+    if not settings.OPENAI_API_KEY or _llm_down():
         return None
     try:
         from openai import AsyncOpenAI
@@ -78,8 +92,10 @@ async def _llm_answer(req: AskRequest) -> Optional[str]:
             })
         messages.append({"role": "user", "content": req.query})
         resp = await client.chat.completions.create(model=settings.LLM_MODEL, messages=messages, max_tokens=600)
+        _llm_mark(True)
         return resp.choices[0].message.content
     except Exception as e:
+        _llm_mark(False, str(e)[:200])
         logger.info(f"LLM unavailable, using fallback: {e}")
         return None
 
@@ -157,6 +173,7 @@ class AgentStepResponse(BaseModel):
     action: str
     arg: Dict[str, Any] = {}
     final_answer: Optional[str] = None
+    confirm: Optional[str] = None   # when set, the UI must ask the user before executing
 
 
 def _clean_url(url: str) -> Optional[str]:
@@ -171,7 +188,30 @@ def _clean_url(url: str) -> Optional[str]:
     return None
 
 
-def _validate_plan(plan: Dict[str, Any], max_id: Optional[int] = None) -> Optional[AgentStepResponse]:
+def _confirm_msg(action: str, arg: Dict[str, Any], elements: Optional[List[AgentElement]] = None) -> Optional[str]:
+    """Human-readable description of a consequential action, for the approve/skip prompt.
+
+    Only state-changing actions get a gate: clicks can submit forms or trigger
+    purchases, typing can fill credentials, press_enter submits the focused form.
+    Read-only actions (navigate, search, scroll, extract) run without a prompt."""
+    if action == "press_enter":
+        return "submit the form / press Enter"
+    if action not in ("click", "type"):
+        return None
+    label = ""
+    el_id = arg.get("id")
+    if elements is not None and isinstance(el_id, int) and 0 <= el_id < len(elements):
+        e = elements[el_id]
+        label = (e.text or e.placeholder or e.href or e.tag or "").strip()[:60]
+    if action == "click":
+        return f"click \"{label or 'the element'}\""
+    text = str(arg.get("text") or "")[:40]
+    suffix = " and submit it" if arg.get("submit") else ""
+    return f"type \"{text}\" into \"{label or 'the field'}\"{suffix}"
+
+
+def _validate_plan(plan: Dict[str, Any], max_id: Optional[int] = None,
+                   elements: Optional[List[AgentElement]] = None) -> Optional[AgentStepResponse]:
     """Sanitize an LLM-produced plan; return None if unusable.
 
     max_id bounds element ids to what the snapshot actually exposed — the model
@@ -206,6 +246,7 @@ def _validate_plan(plan: Dict[str, Any], max_id: Optional[int] = None) -> Option
             out["arg"]["submit"] = bool(arg.get("submit"))
     elif action == "scroll":
         out["arg"]["direction"] = "up" if str(arg.get("direction")).lower() == "up" else "down"
+    out["confirm"] = _confirm_msg(action, out["arg"], elements)
     return AgentStepResponse(**out)
 
 
@@ -294,7 +335,9 @@ def _rule_plan(req: AgentStepRequest) -> AgentStepResponse:
     if re.search(r"(first result|first link|top result)", g):
         for el in els:
             if el.tag == "a" and el.href:
-                return AgentStepResponse(thought=f"Clicking first link: {el.text or el.href}", action="click", arg={"id": el.id})
+                arg = {"id": el.id}
+                return AgentStepResponse(thought=f"Clicking first link: {el.text or el.href}", action="click", arg=arg,
+                                         confirm=_confirm_msg("click", arg, req.snapshot.elements if req.snapshot else None))
         return AgentStepResponse(thought="No links on the page.", action="fail", final_answer="No clickable links found.")
 
     m = re.search(r"click(?:ing)? (?:the |on )?[\"']?(.+?)[\"']?\s*$", g)
@@ -309,7 +352,9 @@ def _rule_plan(req: AgentStepRequest) -> AgentStepResponse:
                 best = el
                 break
         if best is not None:
-            return AgentStepResponse(thought=f"Clicking {best.text or best.placeholder or best.tag}", action="click", arg={"id": best.id})
+            arg = {"id": best.id}
+            return AgentStepResponse(thought=f"Clicking {best.text or best.placeholder or best.tag}", action="click", arg=arg,
+                                     confirm=_confirm_msg("click", arg, req.snapshot.elements if req.snapshot else None))
         return AgentStepResponse(thought=f"No element matching '{target}'.", action="fail", final_answer=f"Couldn't find a clickable element matching '{target}'.")
 
     m = re.search(r"(?:type|enter|fill(?: in)?) [\"'](.+?)[\"']\s*(?:in(?:to)?|as)\s+(?:the\s+)?[\"']?(.+?)[\"']?\s*$", g)
@@ -322,8 +367,10 @@ def _rule_plan(req: AgentStepRequest) -> AgentStepResponse:
             if el.tag in ("input", "textarea") or el.type in ("text", "search", "email", "url", "password"):
                 label = (el.placeholder or el.text or "").lower()
                 if match(el, target) or not label:
+                    arg = {"id": el.id, "text": text, "submit": "search" in g or "enter" in g}
                     return AgentStepResponse(thought=f"Typing into {el.placeholder or el.tag}", action="type",
-                                           arg={"id": el.id, "text": text, "submit": "search" in g or "enter" in g})
+                                           arg=arg,
+                                           confirm=_confirm_msg("type", arg, req.snapshot.elements if req.snapshot else None))
         return AgentStepResponse(thought="No input field found.", action="fail", final_answer="No matching input field on the page.")
 
     if re.search(r"scroll (down|up)", g):
@@ -341,7 +388,7 @@ def _rule_plan(req: AgentStepRequest) -> AgentStepResponse:
 
 async def _llm_plan(req: AgentStepRequest) -> Optional[AgentStepResponse]:
     """Ask the configured LLM for the next action as strict JSON. None on failure."""
-    if not settings.OPENAI_API_KEY:
+    if not settings.OPENAI_API_KEY or _llm_down():
         return None
     try:
         from openai import AsyncOpenAI
@@ -394,10 +441,13 @@ async def _llm_plan(req: AgentStepRequest) -> Optional[AgentStepResponse]:
         raw = resp.choices[0].message.content or ""
         m = re.search(r"\{.*\}", raw, re.S)
         if not m:
+            _llm_mark(False, "model returned no JSON")
             return None
+        _llm_mark(True)
         plan = json.loads(m.group(0))
-        return _validate_plan(plan, max_id=len(snap.elements))
+        return _validate_plan(plan, max_id=len(snap.elements), elements=snap.elements)
     except Exception as e:
+        _llm_mark(False, str(e)[:200])
         logger.info(f"LLM planner unavailable: {e}")
         return None
 
@@ -474,3 +524,15 @@ async def ask(req: AskRequest, request: Request):
         if summary:
             return AskResponse(answer=summary, sources=[])
     return await _ddg_fallback(req.query)
+
+
+@router.get("/status")
+async def status():
+    """Report backend + LLM health. llm_available is None until the first LLM call probes it."""
+    return {
+        "backend": "ok",
+        "model": settings.LLM_MODEL,
+        "llm_configured": bool(settings.OPENAI_API_KEY),
+        "llm_available": _llm_state["ok"],
+        "llm_error": _llm_state["error"],
+    }

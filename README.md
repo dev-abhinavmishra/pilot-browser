@@ -99,9 +99,17 @@ fallback handles `go to <site>`, `search for <q>`, `click the <label>` ,
 
 Safety boundaries: navigation is restricted to `http(s)`, element actions are
 limited to elements seen in the last snapshot, tasks act only in the current
-tab, and runs are capped at 12 steps with cancel-anytime. Note that page
-content is passed to the model — actions (including clicks and form submits)
-run without per-step approval, so only run tasks on pages you trust.
+tab, and runs are capped at 12 steps with cancel-anytime. Consequential
+steps — `click`, `type`, `press_enter` — pause for an explicit **Allow /
+Skip / Stop** prompt before executing (Skip tells the planner to try
+something else). Read-only steps (navigate, search, scroll, extract) run
+without prompting. Note that page content is passed to the model, so only
+run tasks on pages you trust.
+
+The panel header shows a status pill (`GET /api/v1/assistant/status`) that
+reports whether the configured LLM is answering or the built-in rules are.
+When the model is unreachable the backend skips it for a short cooldown
+instead of paying the connect timeout on every step.
 
 Run the backend agent-endpoint tests with:
 
@@ -135,8 +143,9 @@ npm run package    # electron-builder → release/ (AppImage, deb, dmg, nsis)
 │       ├── palette.js  # Command palette
 │       ├── ui.js       # Toolbar, find bar, library panels, context menus
 │       ├── settings.js # Settings panel
+│       ├── agent.js    # Agent loop: snapshot → agent-step → act → report
 │       └── assistant.js# Pilot AI side panel
-├── backend/            # FastAPI + SQLAlchemy; /api/v1/assistant/ask
+├── backend/            # FastAPI; /api/v1/assistant/{ask,agent-step,status}
 ├── scripts/dev.js      # Dev launcher (vite build + electron)
 └── assets/icon.png
 ```
@@ -146,7 +155,8 @@ npm run package    # electron-builder → release/ (AppImage, deb, dmg, nsis)
 - Webview guests run sandboxed with context isolation and no Node integration.
 - The shell exposes a minimal `window.pilot` IPC surface via a preload bridge.
 - Downloads stream through the main process into your Downloads folder.
-- The backend stores its SQLite database under `backend/`; no telemetry.
+- The backend is stateless (no database); no telemetry.
+- Agent action text rendered in the panel is always inserted as text, never HTML.
 
 ## License
 
