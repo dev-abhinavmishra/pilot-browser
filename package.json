@@ -1,6 +1,6 @@
 {
   "name": "pilot-browser",
-  "version": "1.0.0",
+  "version": "1.0.0-beta.1",
   "description": "Pilot — a minimalist, AI-powered desktop browser (Arc-style sidebar, spaces, split view, command palette)",
   "main": "electron/main.cjs",
   "type": "module",
